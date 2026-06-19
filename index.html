@@ -285,7 +285,7 @@
         <!-- 제작자 표기 푸터 -->
         <footer class="mt-auto bg-gray-800 text-gray-400 py-6 text-center shrink-0">
             <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-center items-center gap-2 text-xs sm:text-sm">
-                <p>스마트 학급 모둠 구성 프로그램 2026.06.18 Ver. 1.03.00</p>
+                <p>스마트 학급 모둠 구성 프로그램 2026.06.18 Ver. 1.02.00</p>
                 <span class="hidden sm:inline">|</span>
                 <p>
                     Created by <span class="font-semibold text-gray-300">이진희</span> 
@@ -304,7 +304,7 @@
             <div class="p-4 sm:p-5 border-b bg-indigo-50 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-lg sm:text-xl text-indigo-900 flex items-center gap-2">
                     <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    스마트 학급 모둠 구성 프로그램 사용 설명서 (Ver. 1.03.00)
+                    스마트 학급 모둠 구성 프로그램 사용 설명서 (Ver. 1.02.00)
                 </h3>
                 <button onclick="closeModal('manualModal')" class="text-gray-400 hover:text-indigo-800 hover:bg-indigo-200 p-1.5 rounded-lg transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -1171,31 +1171,104 @@
             document.getElementById('presentationModal').classList.remove('hidden');
         }
 
+        // Vercel 등 팝업 차단 우회를 위한 Blob 방식 새 창 열기로 롤백 및 성적 옵션 연동 수정
         function openPresentationNewWindow() {
             if (!globalGroups || globalGroups.length === 0) return;
             const displayClassName = getDisplayClassName(globalClassName);
             const titleText = `🎉 ${displayClassName === '전체반' ? '전체' : displayClassName} 모둠 구성 결과`;
             
             const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
+            // 성적 표시 여부를 토글뿐만 아니라, 명렬표에 성적 열 자체가 있었는지까지 확인
+            const hasScoreData = document.getElementById('scoreOptionsDiv') && !document.getElementById('scoreOptionsDiv').classList.contains('hidden');
+            const showScore = shouldDisplayScore() && hasScoreData; 
+            
+            let tiers = getClassTiers(globalClassName);
+
+            let htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${titleText}</title>
+                <script src="https://cdn.tailwindcss.com"><\/script>
+                <style>
+                    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+                    body { font-family: 'Pretendard', sans-serif; background-color: #111827; color: white; margin: 0; padding: 2rem; min-height: 100vh; }
+                    .fade-in { animation: fadeIn 0.5s ease-in; }
+                    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                </style>
+            </head>
+            <body>
+                <div class="max-w-[90rem] mx-auto fade-in">
+                    <div class="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-indigo-400">${titleText}</h2>
+                        <button onclick="window.close()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-colors">창 닫기</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            `;
+
+            globalGroups.forEach(group => {
+                htmlContent += `
+                        <div class="bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-700 h-full flex flex-col">
+                            <div class="bg-indigo-600 text-white p-5 text-center">
+                                <h3 class="font-extrabold text-2xl">${group.id} 모둠</h3>
+                            </div>
+                            <ul class="p-5 space-y-4 flex-grow">
+                `;
+
+                group.students.forEach(student => {
+                    const mbtiHtml = (showMbti && student.mbti) ? `<span class="text-purple-300 text-sm mr-2 font-bold bg-purple-900/50 px-2 py-1 rounded-md border border-purple-700/50 shrink-0">${student.mbti}</span>` : '';
+                    
+                    let scoreHtml = '';
+                    if (showScore && !isNaN(student.score)) {
+                        let t = tiers[student.number] || '중';
+                        let rawSc = isNaN(student.score) ? '' : `:${student.score}`;
+                        scoreHtml = `<span class="text-emerald-300 text-sm mr-2 font-bold bg-emerald-900/50 px-2 py-1 rounded-md border border-emerald-700/50 shrink-0">${t}${rawSc}</span>`;
+                    }
+
+                    const roleHtml = student.role ? `<span class="text-amber-300 text-base ml-auto font-bold whitespace-nowrap bg-amber-900/50 px-3 py-1 rounded-md border border-amber-700/50">#${student.role}</span>` : '';
+                    
+                    htmlContent += `
+                                <li class="flex items-center text-xl font-medium p-4 rounded-xl border border-gray-600 text-gray-100 shadow-sm" style="background-color: #374151;">
+                                    <span class="text-gray-400 w-10 text-right mr-4 text-lg font-mono">${student.number}.</span>
+                                    <div class="flex items-center flex-wrap gap-1">
+                                        ${mbtiHtml}
+                                        ${scoreHtml}
+                                        <span class="font-bold">${student.name}</span>
+                                    </div>
+                                    ${roleHtml}
+                                </li>
+                    `;
+                });
+                htmlContent += `
+                            </ul>
+                        </div>
+                `;
+            });
+
+            htmlContent += `
+                    </div>
+                </div>
+            </body>
+            </html>
+            `;
 
             try {
-                localStorage.setItem('classGroupMaker_presentationData', JSON.stringify({ 
-                    groups: globalGroups, 
-                    title: titleText, 
-                    showMbti: showMbti,
-                    showScore: showScore 
-                }));
-                localStorage.setItem('classGroupMaker_pending', 'true');
+                // Blob 객체를 이용해 안전하게 가상 파일 링크 생성
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
                 
-                const newWin = window.open(window.location.href, '_blank');
+                const a = document.createElement('a');
+                a.href = url;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
                 
-                if (!newWin) {
-                    alert("⚠️ 팝업이 차단되어 새 창을 열 수 없습니다.\n브라우저 주소창 우측의 [팝업 차단] 아이콘을 클릭하여 '항상 허용'으로 변경해 주세요.");
-                    return;
-                }
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
             } catch (e) {
-                alert("⚠️ 사용 중인 브라우저(또는 시크릿 모드) 보안 설정으로 인해 새 창 기능을 사용할 수 없습니다. [팝업뷰] 기능을 이용해 주세요.");
+                alert("사용 중인 브라우저 환경에서 새 창 열기를 지원하지 않습니다. 팝업 차단이 해제되어 있는지 확인해 주세요.");
             }
         }
 
