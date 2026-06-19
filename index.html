@@ -150,8 +150,8 @@
                         </select>
                     </div>
 
-                    <!-- 성적 옵션 -->
-                    <div class="pt-3 mt-3 border-t border-dashed border-gray-200">
+                    <!-- 성적 옵션 (조건부 표시) -->
+                    <div id="scoreOptionsDiv" class="pt-3 mt-3 border-t border-dashed border-gray-200 hidden">
                         <div class="flex justify-between items-center mb-1">
                             <label class="block text-xs sm:text-sm font-bold text-emerald-800">📈 성적 균등 분배</label>
                             <div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
@@ -312,96 +312,65 @@
             </div>
             
             <div class="p-5 sm:p-8 overflow-y-auto flex-1 bg-white text-gray-700 space-y-6 sm:space-y-8 leading-relaxed text-sm sm:text-base">
-                
-                <div class="bg-blue-50/50 border border-blue-100 p-4 sm:p-5 rounded-xl">
-                    <p class="font-bold text-blue-900 text-base sm:text-lg mb-2">선생님, 안녕하세요!</p>
-                    <p class="text-blue-800 mb-2">매번 번거로웠던 모둠 짜기, 이제 클릭 몇 번으로 스마트하게 해결해 보세요. <br>성별 균형, 학생 성향(MBTI), 세심한 교우 관계(단짝/기피), 그리고 <strong class="text-blue-900">성적/점수까지 균등하게 분배</strong>하여 최적의 모둠을 자동으로 구성해 줍니다.</p>
-                    <p class="text-xs sm:text-sm font-bold text-red-500 bg-red-50 p-2 rounded-lg border border-red-100 mt-3">※ 인터넷 서버를 거치지 않고 선생님의 PC(웹 브라우저)에서만 작동하므로, 학생 개인정보 유출 위험이 전혀 없으며 평생 무료로 안전하게 사용 가능합니다!</p>
+                <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
+                    <p class="font-medium text-blue-900">선생님, 안녕하세요!</p>
+                    <p class="mt-2 text-blue-800">매번 번거로웠던 모둠 짜기, 이제 클릭 몇 번으로 스마트하게 해결해 보세요. 성별 균형, 학생 성향(MBTI), 그리고 선생님만의 세심한 조건(단짝, 기피 학생) 및 성적 균등 분배까지 모두 반영하여 최적의 모둠을 자동으로 구성해 줍니다.</p>
+                    <p class="mt-2 text-xs font-bold text-red-500">※ 인터넷 서버를 거치지 않고 선생님의 PC(웹 브라우저)에서만 작동하므로, 학생 개인정보 유출 위험이 전혀 없으며 평생 무료로 안전하게 사용 가능합니다!</p>
                 </div>
 
                 <section>
-                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">0. 시작하기 전 준비사항 (명렬표 파일)</h4>
+                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">0. 시작하기 전 준비사항</h4>
                     <p class="mb-2">프로그램을 사용하기 위해 학생 명렬표 파일(Excel 또는 CSV)이 필요합니다. 파일의 첫 번째 줄(헤더)에는 아래의 내용이 꼭 포함되어야 합니다.</p>
-                    <ul class="list-disc pl-5 space-y-1.5 text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        <li><strong>필수 항목:</strong> <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">반</code>, <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">번호</code>, <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">이름</code>, <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">성별</code></li>
-                        <li><strong>선택 항목:</strong> <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">학년</code>, <code class="bg-white border px-1.5 py-0.5 rounded text-indigo-700 font-bold">MBTI</code>, <code class="bg-white border px-1.5 py-0.5 rounded text-emerald-600 font-bold">성적</code>(또는 <code>점수</code>)</li>
+                    <ul class="list-disc pl-5 space-y-1 text-gray-600">
+                        <li><strong>필수 항목:</strong> <code class="bg-gray-100 px-1 rounded">반</code>, <code class="bg-gray-100 px-1 rounded">번호</code>, <code class="bg-gray-100 px-1 rounded">이름</code>, <code class="bg-gray-100 px-1 rounded">성별</code></li>
+                        <li><strong>선택 항목:</strong> <code class="bg-gray-100 px-1 rounded">학년</code>, <code class="bg-gray-100 px-1 rounded">MBTI</code>, <code class="bg-gray-100 px-1 rounded">성적</code>(또는 점수)</li>
                     </ul>
-                    <p class="text-xs sm:text-sm text-indigo-600 font-medium mt-2">* Tip: 나이스(NEIS) 명렬표 양식에 '성적' 열만 추가하여 그대로 사용하셔도 완벽하게 인식됩니다.</p>
+                    <p class="text-xs text-gray-500 mt-2">* Tip: 기존 나이스(NEIS) 다운로드 명렬표 양식에 성적 열만 추가하여 그대로 사용하셔도 무방합니다.</p>
                 </section>
 
                 <section>
                     <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">1. 명렬표 업로드 및 대상 선택</h4>
                     <ol class="list-decimal pl-5 space-y-2 text-gray-600">
-                        <li>화면 좌측 상단의 <strong>[클릭하여 명렬표 선택]</strong> 영역을 눌러 준비한 엑셀 파일을 업로드합니다.</li>
-                        <li>파일이 정상적으로 인식되면, 그 아래에 <strong>[모둠을 구성할 반 선택]</strong> 드롭다운 메뉴가 나타납니다.</li>
-                        <li>모둠을 짤 학급을 선택합니다. (전체 학년 명렬표를 올렸어도 반별로 알아서 분리해 줍니다!)</li>
-                        <li><strong>[📋 명단 확인]</strong> 버튼을 누르면 해당 반의 학생 명단이 잘 불러와졌는지 바로 확인할 수 있습니다.</li>
+                        <li>화면 좌측의 <strong>[클릭하여 명렬표 선택]</strong> 영역을 눌러 엑셀 파일을 업로드합니다.</li>
+                        <li>파일이 인식되면 나타나는 <strong>[모둠을 구성할 반 선택]</strong> 메뉴에서 학급을 고릅니다.</li>
+                        <li><strong>[📋 명단 확인]</strong> 버튼을 누르면 학생 명단(성별, MBTI, 성적 포함)이 잘 불러와졌는지 바로 확인할 수 있습니다.</li>
                     </ol>
                 </section>
 
                 <section>
-                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">2. 모둠 기본 설정</h4>
-                    <p class="mb-2 text-gray-600">원하시는 모둠의 기본 형태를 잡아줍니다.</p>
+                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">2. 모둠 기본 및 균형 배치 설정</h4>
                     <ul class="list-disc pl-5 space-y-2 text-gray-600">
-                        <li><strong>총 모둠 수:</strong> 몇 모둠으로 나눌지 선택합니다. (4~12모둠 지원)</li>
-                        <li><strong>모둠당 최소/최대 인원:</strong> 모둠별 인원수 제한을 둡니다. (기본 3~4명)</li>
-                        <li><strong>결과 화면 정렬:</strong> 구성된 모둠 결과를 어떤 순서로 보여줄지 선택합니다. (번호순 / 완전 랜덤 / 역할순)</li>
+                        <li><strong>총 모둠 수 / 인원:</strong> 원하시는 모둠의 형태(모둠 수, 인원 제한)를 설정합니다.</li>
+                        <li><strong>성별 비율:</strong> 한 모둠 내 특정 성별의 '최대 인원'을 지정하여 성별 쏠림을 방지합니다.</li>
+                        <li><strong>MBTI 균등 분배:</strong> 명렬표에 MBTI가 있다면, E/I 등 특정 성향이 각 조에 골고루 들어가도록 섞어줍니다. (결과 표시 ON/OFF 지원)</li>
+                        <li><strong>성적 균등 분배:</strong> 명렬표에 성적/점수가 있다면, 상위권과 하위권 학생이 조별로 한쪽에 치우치지 않게 3단계(상/중/하)로 균등하게 섞어 쪼개어 배정합니다. (결과 표시 ON/OFF 지원)</li>
                     </ul>
                 </section>
 
                 <section>
-                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">3. 균형 배치 설정 (성별, MBTI, 성적) <span class="text-rose-500 text-sm align-top">⭐핵심⭐</span></h4>
-                    <p class="mb-2 text-gray-600">특정 성별이나 성향, 성적이 한 모둠에 쏠리지 않도록 방지합니다.</p>
+                    <h4 class="text-lg font-bold text-rose-600 border-l-4 border-rose-500 pl-3 mb-3">3. 기피 학생 & 필수 짝꿍 묶기</h4>
+                    <p class="mb-2">학생들에게 보여줄 때는 <strong>[숨기기]</strong> 버튼을 눌러 안전하게 가려둘 수 있습니다.</p>
                     <ul class="list-disc pl-5 space-y-2 text-gray-600">
-                        <li><strong>성별 설정:</strong> 한 모둠에 들어갈 수 있는 남학생과 여학생의 '최대 인원'을 지정합니다.</li>
-                        <li><strong>MBTI 지표 균등 분배:</strong> E(외향)/I(내향) 등 특정 지표가 모든 모둠에 골고루 들어가도록 섞어줍니다.</li>
-                        <li><strong class="text-emerald-700">성적 균등 분배 (NEW!):</strong> 학생들을 성적순으로 자동 정렬한 뒤, 상위권/중위권/하위권(3단계) 학생들이 조별로 골고루 섞이도록 배정합니다.</li>
-                        <li><strong>🔒 표시 끄기/켜기 토글:</strong> 학생 프라이버시 보호를 위해 결과 화면에서 MBTI와 성적 정보가 보이지 않도록 즉시 켜고 끌 수 있습니다. (알고리즘에는 정상 반영되며 노출만 숨깁니다.)</li>
+                        <li><strong>기피 학생 분리하기:</strong> <code>6번 친구는 10번, 25번 친구와 같은 모둠이 되지 않게 해줘</code> 라고 적으면 알아서 분리합니다.</li>
+                        <li><strong>필수 짝꿍 묶기:</strong> <code>1번, 5번, 12번은 같은 조로 해줘</code> 라고 적으면 무조건 한 조로 묶습니다.</li>
                     </ul>
                 </section>
 
                 <section>
-                    <h4 class="text-lg font-bold text-rose-600 border-l-4 border-rose-500 pl-3 mb-3">4. 기피 학생 & 필수 짝꿍 묶기</h4>
-                    <p class="mb-2 text-gray-600">가장 신경 쓰이는 교우 관계를 편하게 설정할 수 있습니다. (학생들에게 보여줄 때는 <strong>[숨기기]</strong> 버튼을 활용하세요.)</p>
-                    <ul class="list-disc pl-5 space-y-2 text-gray-600 mb-3">
-                        <li><strong>기피 학생 분리하기:</strong> <code>6번 친구는 10번, 25번 친구와 같은 모둠이 되지 않게 해줘</code> 라고 적으면, 알아서 분리합니다.</li>
-                        <li><strong>필수 짝꿍 묶기:</strong> <code>1번, 5번, 12번은 같은 조로 해줘</code> 라고 적으면 무조건 묶어줍니다.</li>
-                    </ul>
-                    <div class="bg-rose-50 p-3 rounded-lg border border-rose-100 text-sm text-rose-800">
-                        <strong>💡 스마트 알림:</strong> 선생님이 묶은 짝꿍의 수가 성별, MBTI, 성적 제한을 초과하여 배치가 불가능할 경우, 시스템이 정확한 원인과 해결책을 팝업으로 안내해 줍니다!
-                    </div>
+                    <h4 class="text-lg font-bold text-amber-600 border-l-4 border-amber-500 pl-3 mb-3">4. 모둠 내 역할 분담 (선택)</h4>
+                    <p class="text-gray-600">직접 역할을 적어주시거나, <strong>[✨ 상황별 추천 역할 불러오기]</strong>에서 과학 실험, 토론 수업, 직급 밈 등 실용적인 역할들을 바로 가져와 적용할 수 있습니다.</p>
                 </section>
 
                 <section>
-                    <h4 class="text-lg font-bold text-amber-600 border-l-4 border-amber-500 pl-3 mb-3">5. 모둠 내 역할 분담 (선택)</h4>
-                    <p class="mb-2 text-gray-600">구성원들에게 랜덤으로 역할을 부여합니다.</p>
-                    <ul class="list-disc pl-5 space-y-2 text-gray-600">
-                        <li><strong>직접 입력:</strong> '이끔이, 기록이, 나눔이' 처럼 직접 역할을 쉼표로 구분해 적어주세요.</li>
-                        <li><strong>추천 세트:</strong> <strong>[✨ 상황별 추천 역할 불러오기]</strong>를 클릭하면 과학 실험, 토론 수업, 직급 밈 등 실용적인 역할들을 바로 적용할 수 있습니다.</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h4 class="text-lg font-bold text-emerald-600 border-l-4 border-emerald-500 pl-3 mb-3">6. 최적의 모둠 구성하기 및 결과 활용</h4>
-                    <p class="mb-3 text-gray-600">모든 설정을 마쳤다면 하단의 <strong class="text-indigo-600">[최적의 모둠 구성하기]</strong> 버튼을 클릭하세요! 결과창 상단의 <strong>기능 버튼</strong>들을 활용해 보세요:</p>
+                    <h4 class="text-lg font-bold text-emerald-600 border-l-4 border-emerald-500 pl-3 mb-3">5. 최적의 모둠 구성하기 및 결과 활용</h4>
+                    <p class="mb-3 text-gray-600">하단의 <strong>[최적의 모둠 구성하기]</strong> 버튼을 누르면 우측 화면에 결과가 나타납니다.</p>
                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                        <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
-                            <li><strong>[📋 복사]</strong> : 결과를 텍스트로 복사하여 메신저에 바로 붙여넣습니다. (MBTI, 성적 토글 ON/OFF 상태가 그대로 반영됩니다!)</li>
+                        <ul class="list-disc pl-5 space-y-1.5 text-sm text-gray-700">
+                            <li><strong>[📋 복사]</strong> : 결과를 텍스트로 복사하여 메신저에 바로 붙여넣습니다.</li>
                             <li><strong>[📺 팝업뷰]</strong> : 화면 위에 깔끔한 다크 모드 프리젠테이션 창을 띄웁니다.</li>
-                            <li><strong>[🪟 새 창]</strong> : 다중 모니터에서 사용하기 좋도록 독립된 새 인터넷 탭으로 띄웁니다.</li>
-                            <li><strong>[💾 엑셀 저장]</strong> : 생기부나 수행평가 기록용으로 즉시 엑셀 파일로 다운로드합니다. (토글 설정 반영됨)</li>
+                            <li><strong>[🪟 새 창]</strong> : 다중 모니터 환경에서 사용하기 좋도록 독립된 새로운 탭으로 결과를 띄웁니다. (구글 스크립트 웹 앱 환경도 전적으로 지원)</li>
+                            <li><strong>[💾 엑셀 저장]</strong> : 생기부 기록이나 수행평가 보관용으로 구성표를 엑셀 파일로 즉시 다운로드합니다.</li>
                         </ul>
-                    </div>
-                </section>
-                
-                <section class="border-t pt-6 mt-4">
-                    <h4 class="text-base font-bold text-gray-800 mb-2">💡 문제 해결 (FAQ)</h4>
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <p class="text-sm text-gray-800 font-bold mb-1"><span class="text-rose-500">Q.</span> "조건이 너무 복잡하여 모둠을 구성할 수 없습니다"라는 알림이 떠요.</p>
-                        <p class="text-sm text-gray-600 pl-5">
-                            <span class="font-bold text-indigo-600">A.</span> 기피/짝꿍 조건이 너무 얽혀 있거나, 현재 반의 인원 대비 성별/성적 제한이 너무 빡빡할 때 나타납니다.<br>
-                            👉 <strong>해결 방법:</strong> '남/여 학생 최대 인원'을 1명씩 올리거나, 성적/MBTI 균등 분배를 잠시 '적용 안 함'으로 변경해 보세요.
-                        </p>
                     </div>
                 </section>
             </div>
@@ -599,6 +568,7 @@
         function parseStudentData(json, filename) {
             allClassesData = {};
             let totalParsed = 0;
+            let hasAnyScore = false; // 성적 데이터가 하나라도 있는지 확인하는 플래그
 
             json.forEach(row => {
                 const keys = Object.keys(row);
@@ -627,6 +597,10 @@
                     if (!allClassesData[classNum]) allClassesData[classNum] = [];
 
                     let parsedScore = (scoreKey && row[scoreKey] !== undefined) ? parseFloat(row[scoreKey]) : NaN;
+                    
+                    if (!isNaN(parsedScore)) {
+                        hasAnyScore = true;
+                    }
 
                     allClassesData[classNum].push({
                         number: parseInt(row[numKey]),
@@ -642,6 +616,7 @@
             const statusEl = document.getElementById('uploadStatus');
             const classSelectionDiv = document.getElementById('classSelectionDiv');
             const classSelect = document.getElementById('classSelect');
+            const scoreOptionsDiv = document.getElementById('scoreOptionsDiv');
 
             statusEl.classList.remove('hidden');
             if (totalParsed > 0) {
@@ -658,10 +633,21 @@
                     classSelect.appendChild(opt);
                 });
                 classSelectionDiv.classList.remove('hidden');
+
+                // 성적 데이터가 있으면 설정 옵션 보이기, 없으면 숨기기
+                if (hasAnyScore) {
+                    scoreOptionsDiv.classList.remove('hidden');
+                } else {
+                    scoreOptionsDiv.classList.add('hidden');
+                    // 성적 균등 분배를 적용 안 함으로 강제 리셋
+                    document.getElementById('scoreBalance').value = 'none';
+                }
+
             } else {
                 statusEl.innerHTML = `❌ 인식된 데이터가 없습니다. (필수 열: 반, 번호, 이름, 성별 확인)`;
                 statusEl.className = "mt-3 text-xs sm:text-sm text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100 inline-block";
                 classSelectionDiv.classList.add('hidden');
+                scoreOptionsDiv.classList.add('hidden');
             }
         }
 
@@ -976,6 +962,7 @@
             }
         }
 
+        // 학급명 정리 헬퍼 함수
         function getDisplayClassName(className) {
             return (className === '전체반' || className.endsWith('반')) ? className : `${className}반`;
         }
@@ -1031,7 +1018,7 @@
                         ? `<span class="bg-purple-100 text-purple-800 text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded font-extrabold shadow-sm border border-purple-200 shrink-0 mr-1 text-center w-8 inline-block">${student.mbti}</span>` : '';
 
                     let scoreBadge = '';
-                    if (showScore) {
+                    if (showScore && !isNaN(student.score)) {
                         let t = tiers[student.number] || '중';
                         let rawSc = isNaN(student.score) ? '' : `:${student.score}`;
                         scoreBadge = `<span class="bg-emerald-100 text-emerald-800 text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded font-extrabold shadow-sm border border-emerald-200 shrink-0 mr-1.5 text-center inline-block">${t}${rawSc}</span>`;
@@ -1079,7 +1066,7 @@
                 const mbtiText = (showMbti && student.mbti) ? `<span class="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 rounded border border-purple-200">${student.mbti}</span>` : '';
                 
                 let scoreText = '';
-                if (showScore) {
+                if (showScore && !isNaN(student.score)) {
                     let t = tiers[student.number] || '중';
                     let rawSc = isNaN(student.score) ? '' : ` : ${student.score}점`;
                     scoreText = `<span class="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 rounded border border-emerald-200">${t}${rawSc}</span>`;
@@ -1113,7 +1100,7 @@
                 const studentStrs = g.students.map(s => {
                     let sStr = `${s.number}번 ${s.name}(${s.gender.includes('남') ? '남' : '여'})`;
                     if(showMbti && s.mbti) sStr += `[${s.mbti}]`;
-                    if(showScore) {
+                    if(showScore && !isNaN(s.score)) {
                         let t = tiers[s.number] || '중';
                         let raw = isNaN(s.score) ? '' : `:${s.score}`;
                         sStr += `[성적:${t}${raw}]`;
@@ -1160,7 +1147,7 @@
                     const mbtiHtml = (showMbti && student.mbti) ? `<span class="text-purple-300 text-xs sm:text-sm mr-2 font-bold bg-purple-900/50 px-2 py-0.5 rounded-md border border-purple-700/50 shrink-0">${student.mbti}</span>` : '';
                     
                     let scoreHtml = '';
-                    if (showScore) {
+                    if (showScore && !isNaN(student.score)) {
                         let t = tiers[student.number] || '중';
                         let raw = isNaN(student.score) ? '' : `:${student.score}`;
                         scoreHtml = `<span class="text-emerald-300 text-xs sm:text-sm mr-2 font-bold bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-700/50 shrink-0">${t}${raw}</span>`;
