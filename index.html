@@ -1,305 +1,12 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스마트 학급 모둠 구성 프로그램</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style>
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f3f4f6; transition: background-color 0.3s ease; }
-        .fade-in { animation: fadeIn 0.35s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .student-card {
-            transition: all 0.15s ease;
-            user-select: none;
-        }
-        .student-card:hover {
-            border-color: #818cf8;
-            background-color: #f5f3ff;
-        }
-        .student-card.dragging {
-            opacity: 0.4;
-            transform: scale(0.97);
-            border: 2px dashed #4f46e5;
-        }
-        .student-card.drag-over-student {
-            border: 2px solid #4f46e5 !important;
-            background-color: #e0e7ff !important;
-            transform: scale(1.02);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-        }
-        .student-card.selected-for-swap {
-            border: 2px solid #4f46e5 !important;
-            background-color: #eef2ff !important;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-        }
-        .group-card.drag-over-group {
-            border: 2px dashed #4f46e5 !important;
-            background-color: #eef2ff !important;
-        }
-
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
-    </style>
-</head>
-<body class="text-gray-800 min-h-screen flex flex-col">
-
-    <div id="toastContainer" class="fixed top-4 right-4 z-[80] flex flex-col gap-2 pointer-events-none"></div>
-
-    <div id="mainAppUI" class="flex flex-col min-h-screen">
-        <!-- 헤더 -->
-        <header class="bg-indigo-600 text-white p-4 sm:p-6 shadow-md shrink-0">
-            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-2">
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">🏫 스마트 학급 모둠 구성 프로그램</h1>
-                    <p class="text-indigo-200 mt-1 text-xs sm:text-sm">명렬표 기반 최적 모둠 자동 생성 · 성적(A~E...) 맞춤형 균등 분배 · 드래그 앤 드롭 수동 조정 지원</p>
-                </div>
-                <button onclick="document.getElementById('manualModal').classList.remove('hidden')" class="bg-indigo-500 hover:bg-indigo-400 border border-indigo-400 text-white text-xs sm:text-sm px-4 py-2 rounded-lg shadow-sm font-semibold transition-colors flex items-center gap-1.5 w-full sm:w-auto justify-center">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    사용 설명서
-                </button>
-            </div>
-        </header>
-
-        <main class="max-w-[90rem] mx-auto mt-4 sm:mt-6 px-4 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 flex-grow w-full">
-            
-            <!-- 왼쪽: 설정 패널 -->
-            <section class="lg:col-span-4 space-y-4 sm:space-y-6 pb-8">
-                
-                <!-- 1. 파일 업로드 및 반 선택 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center border-b pb-2 mb-4">
-                        <h2 class="text-base sm:text-lg font-semibold text-indigo-900">1. 대상 학급 선택</h2>
-                        <button onclick="loadSampleData()" class="text-[11px] sm:text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg font-semibold transition-colors">
-                            🧪 샘플 데이터로 체험
-                        </button>
-                    </div>
-                    <div class="flex items-center justify-center w-full">
-                        <label for="fileInput" class="flex flex-col items-center justify-center w-full h-28 sm:h-32 border-2 border-dashed border-indigo-200 rounded-lg cursor-pointer bg-indigo-50/30 hover:bg-indigo-50 transition">
-                            <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-2">
-                                <svg class="w-7 h-7 sm:w-8 sm:h-8 mb-2 sm:mb-3 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                <p class="mb-1 sm:mb-2 text-xs sm:text-sm text-gray-600"><span class="font-semibold text-indigo-600">클릭하여 명렬표 선택</span> (엑셀/CSV)</p>
-                                <p class="text-[10px] sm:text-xs text-gray-400">필수: 반, 번호, 이름, 성별 / 선택: 학년, MBTI, 성적</p>
-                            </div>
-                            <input id="fileInput" type="file" class="hidden" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)" />
-                        </label>
-                    </div>
-                    <div id="uploadStatus" class="mt-3 text-xs sm:text-sm text-green-600 font-medium hidden"></div>
-
-                    <!-- 반 선택 드롭다운 -->
-                    <div id="classSelectionDiv" class="mt-4 hidden bg-indigo-50 p-3 sm:p-4 rounded-lg border border-indigo-100 fade-in">
-                        <div class="flex justify-between items-center mb-1 sm:mb-2">
-                            <label class="block text-xs sm:text-sm font-bold text-indigo-800">🏫 모둠을 구성할 반 선택</label>
-                            <button onclick="showStudentList()" class="text-[10px] sm:text-xs bg-indigo-200 hover:bg-indigo-300 text-indigo-800 px-2 py-1 rounded shadow-sm font-semibold transition-colors">📋 명단 확인</button>
-                        </div>
-                        <select id="classSelect" onchange="onClassOrGroupCountChange()" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white border p-2 sm:p-2.5 text-gray-800 text-sm sm:text-base font-medium">
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 2. 기본 설정 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-4 text-indigo-900">2. 모둠 기본 설정</h2>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <div>
-                                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">총 모둠 수</label>
-                                <select id="numGroups" onchange="onClassOrGroupCountChange()" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 border p-2 sm:p-2.5 text-sm sm:text-base">
-                                    <option value="2">2모둠</option>
-                                    <option value="3">3모둠</option>
-                                    <option value="4">4모둠</option>
-                                    <option value="5">5모둠</option>
-                                    <option value="6" selected>6모둠 (기본)</option>
-                                    <option value="7">7모둠</option>
-                                    <option value="8">8모둠</option>
-                                    <option value="9">9모둠</option>
-                                    <option value="10">10모둠</option>
-                                    <option value="11">11모둠</option>
-                                    <option value="12">12모둠</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">결과 화면 정렬</label>
-                                <select id="sortOrder" onchange="onSortOrderChange()" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50 border p-2 sm:p-2.5 text-sm sm:text-base">
-                                    <option value="number" selected>번호순 정렬</option>
-                                    <option value="random">랜덤 섞기 (순서 랜덤)</option>
-                                    <option value="role">역할순 정렬</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                            <div>
-                                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">모둠당 최소 인원</label>
-                                <input type="number" id="minPerGroup" value="4" min="2" max="15" class="w-full border-gray-300 rounded-lg shadow-sm bg-gray-50 border p-2 sm:p-2.5 text-center text-sm sm:text-base">
-                            </div>
-                            <div>
-                                <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">모둠당 최대 인원 <span class="text-[11px] text-emerald-600 font-bold">(성적단계 기준)</span></label>
-                                <input type="number" id="maxPerGroup" value="5" min="2" max="15" oninput="updateScoreOptionLabel()" onchange="updateScoreOptionLabel()" class="w-full border-gray-300 rounded-lg shadow-sm bg-gray-50 border p-2 sm:p-2.5 text-center text-sm sm:text-base font-bold text-indigo-700">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. 성별 및 MBTI, 성적 비율 설정 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h2 class="text-base sm:text-lg font-semibold border-b pb-2 mb-3 sm:mb-4 text-indigo-900">3. 균형 배치 설정 (성별/MBTI/성적)</h2>
-                    
-                    <!-- 성별 설정 -->
-                    <div class="mb-4">
-                        <p class="text-[11px] sm:text-xs text-gray-500 mb-2 leading-tight">한 모둠에 들어갈 수 있는 특정 성별의 <span class="font-bold text-red-500">최대 인원</span>을 제한합니다.</p>
-                        <div class="grid grid-cols-2 gap-3 sm:gap-4">
-                            <div class="bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                                <label class="block text-[11px] sm:text-xs font-bold text-blue-800 mb-1 text-center">남학생 최대 인원</label>
-                                <input type="number" id="maxMale" value="3" min="0" max="15" class="w-full border-blue-200 rounded shadow-sm bg-white border p-1.5 sm:p-2 text-center text-blue-700 font-bold text-sm">
-                            </div>
-                            <div class="bg-red-50/50 p-2 rounded-lg border border-red-100">
-                                <label class="block text-[11px] sm:text-xs font-bold text-red-800 mb-1 text-center">여학생 최대 인원</label>
-                                <input type="number" id="maxFemale" value="3" min="0" max="15" class="w-full border-red-200 rounded shadow-sm bg-white border p-1.5 sm:p-2 text-center text-red-600 font-bold text-sm">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- MBTI 옵션 -->
-                    <div class="pt-3 border-t border-dashed border-gray-200">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="block text-xs sm:text-sm font-bold text-purple-800">🧠 MBTI 지표 균등 분배</label>
-                            <div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
-                                <span class="text-[10px] sm:text-xs text-gray-600 font-semibold">결과에 표시:</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="mbtiDisplayToggle" class="sr-only peer" checked onchange="toggleMbtiDisplay()">
-                                    <div class="w-7 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
-                                </label>
-                            </div>
-                        </div>
-                        <p class="text-[10px] sm:text-[11px] text-gray-500 mb-2">명렬표에 MBTI 열이 있다면, 특정 지표가 한 조에 쏠리지 않게 나눕니다.</p>
-                        <select id="mbtiBalance" class="w-full border-purple-200 rounded-lg shadow-sm focus:border-purple-500 focus:ring-purple-500 bg-purple-50/50 border p-2 text-sm text-purple-900 font-medium">
-                            <option value="none">적용 안 함 (랜덤)</option>
-                            <option value="EI">E (외향) / I (내향) 균등 분배</option>
-                            <option value="SN">S (감각) / N (직관) 균등 분배</option>
-                            <option value="TF">T (사고) / F (감정) 균등 분배</option>
-                            <option value="JP">J (판단) / P (인식) 균등 분배</option>
-                        </select>
-                    </div>
-
-                    <!-- 성적 옵션 (조건부 표시 & 모둠 최대 인원수 맞춤 단계) -->
-                    <div id="scoreOptionsDiv" class="pt-3 mt-3 border-t border-dashed border-gray-200 hidden">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="block text-xs sm:text-sm font-bold text-emerald-800">📈 성적 수준별 균등 분배</label>
-                            <div class="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
-                                <span class="text-[10px] sm:text-xs text-gray-600 font-semibold">결과에 표시:</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="scoreDisplayToggle" class="sr-only peer" checked onchange="toggleScoreDisplay()">
-                                    <div class="w-7 h-4 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
-                                </label>
-                            </div>
-                        </div>
-                        <p id="scoreOptionDesc" class="text-[10px] sm:text-[11px] text-gray-500 mb-2">모둠당 최대 인원수(5명)에 맞춰 A~E (5단계) 수준으로 나누어 고르게 배정합니다.</p>
-                        <select id="scoreBalance" class="w-full border-emerald-200 rounded-lg shadow-sm focus:border-emerald-500 focus:ring-emerald-500 bg-emerald-50/50 border p-2 text-sm text-emerald-900 font-medium">
-                            <option value="none">적용 안 함 (랜덤)</option>
-                            <option value="even" id="scoreEvenOption" selected>모둠 최대 인원 맞춤: 5단계 (A~E) 균등 분배</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 4. 기피 학생 설정 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center border-b pb-2 mb-3">
-                        <h2 class="text-base sm:text-lg font-semibold text-rose-800">4. 기피 학생 분리하기</h2>
-                        <button onclick="toggleConstraints()" id="toggleConstraintsBtn" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded border shadow-sm transition-colors flex items-center gap-1 font-medium">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29"></path></svg>
-                            <span>숨기기</span>
-                        </button>
-                    </div>
-                    <div id="constraintsContent" class="transition-all duration-300">
-                        <div class="bg-rose-50/50 p-2.5 rounded-lg mb-2 border border-rose-100">
-                            <p class="text-[11px] sm:text-xs text-rose-700 leading-relaxed font-medium">
-                                💡 예시: 6번의 친구는 10번, 25번 친구와 같은 모둠이 되지 않도록 해줘.
-                            </p>
-                        </div>
-                        <textarea id="constraints" rows="3" placeholder="서로 떨어뜨려 놓을 학생들의 번호를 자유로운 문장으로 적어주세요. (입력하지 않아도 됩니다)" class="w-full border-gray-300 rounded-lg shadow-sm bg-gray-50 border p-3 text-xs sm:text-sm focus:border-rose-500 focus:ring-rose-500 leading-relaxed text-gray-700 resize-y"></textarea>
-                    </div>
-                </div>
-
-                <!-- 5. 짝꿍 학생 설정 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center border-b pb-2 mb-3">
-                        <h2 class="text-base sm:text-lg font-semibold text-emerald-800">5. 필수 짝꿍 묶기</h2>
-                        <button onclick="toggleInclusions()" id="toggleInclusionsBtn" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded border shadow-sm transition-colors flex items-center gap-1 font-medium">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0l-3.29-3.29"></path></svg>
-                            <span>숨기기</span>
-                        </button>
-                    </div>
-                    <div id="inclusionsContent" class="transition-all duration-300">
-                        <div class="bg-emerald-50/50 p-2.5 rounded-lg mb-2 border border-emerald-100">
-                            <p class="text-[11px] sm:text-xs text-emerald-700 leading-relaxed font-medium">
-                                💡 예시: 1번, 5번, 12번 친구는 무조건 같은 모둠으로 묶어줘.
-                            </p>
-                        </div>
-                        <textarea id="inclusions" rows="3" placeholder="반드시 한 조가 되어야 할 학생들의 번호를 적어주세요." class="w-full border-gray-300 rounded-lg shadow-sm bg-gray-50 border p-3 text-xs sm:text-sm focus:border-emerald-500 focus:ring-emerald-500 leading-relaxed text-gray-700 resize-y"></textarea>
-                    </div>
-                </div>
-
-                <!-- 6. 모둠 역할 설정 -->
-                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center border-b pb-2 mb-3 sm:mb-4">
-                        <h2 class="text-base sm:text-lg font-semibold text-amber-800">6. 모둠 내 역할 분담 (선택)</h2>
-                        <button onclick="reassignRolesOnly()" class="text-[11px] sm:text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg font-semibold transition-colors" title="현재 구성된 모둠원은 유지하고 역할만 다시 섞습니다">
-                            🎲 역할만 다시 배정
-                        </button>
-                    </div>
-                    <div class="mb-3">
-                        <select id="rolePreset" onchange="applyRolePreset()" class="w-full border-amber-200 rounded-lg shadow-sm bg-amber-50/30 border p-2 text-xs sm:text-sm focus:border-amber-500 focus:ring-amber-500 text-amber-900 font-medium cursor-pointer">
-                            <option value="">✨ 상황별 추천 역할 불러오기 (클릭)</option>
-                            <optgroup label="기본 및 인성">
-                                <option value="이끔이, 기록이, 나눔이, 지킴이">기본 4역할 (이끔이, 기록이, 나눔이, 지킴이)</option>
-                                <option value="이끔이, 기록이, 자료수집, 발표자, 지킴이">기본 5역할 (이끔이, 기록이, 자료, 발표, 지킴이)</option>
-                                <option value="도담(리더), 슬찬(기록), 라온(분위기), 다솜(배려)">순우리말 세트 (도담, 슬찬, 라온, 다솜)</option>
-                            </optgroup>
-                            <optgroup label="🎤 아이돌 리센느 (RESCENE) 테마">
-                                <option value="원이, 리브, 미나미, 제나, 메이">🎤 리센느 멤버 기본 (원이, 리브, 미나미, 제나, 메이)</option>
-                                <option value="파이리, 갸루귀신, 리트, 메트, 신라공주">🔥 리센느 별명 5종 (파이리, 갸루귀신, 리트, 메트, 신라공주)</option>
-                                <option value="원이(파이리), 리브(리트), 미나미(갸루귀신), 제나(신라공주), 메이(메트)">💖 리센느 멤버+별명 (원이·파이리, 리브·리트, 미나미·갸루귀신, 제나·신라공주, 메이·메트)</option>
-                                <option value="원이(거제불주먹), 리브(최종병기·치즈냥이), 미나미(미냠이·야호귀신), 제나(신라공주·꼬부기), 메이(햇살메이)">🌟 리센느 부캐·별명 확장판 (거제불주먹, 최종병기, 미냠이, 꼬부기, 햇살메이)</option>
-                                <option value="원이(리더·파이리), 리브(메인보컬·리트), 미나미(메인댄서·이상해씨), 제나(센터·꼬부기), 메이(보컬·메트)">🐾 리센느 포지션+포켓몬즈 (리더 파이리, 메인보컬 리트, 메인댄서 이상해씨, 센터 꼬부기, 보컬 메트)</option>
-                            </optgroup>
-                            <optgroup label="🗡️ 젤다의 전설 (야생의 숨결 · 왕국의 눈물 · 시리즈)">
-                                <option value="링크(용사), 젤다(공주), 미파(조라), 다르케르(고론), 리발(리토), 우르보사(게루드)">🛡️ [야숨] 하이랄 영걸 세트 (링크, 젤다, 미파, 다르케르, 리발, 우르보사)</option>
-                                <option value="링크(검사), 젤다(시간의현자), 튤리(바람의현자), 윤돌(불의현자), 시드(물의현자), 루쥬(번개의현자), 미네루(영혼의현자)">👑 [왕눈] 현자 세트 (링크, 젤다, 튤리, 윤돌, 시드, 루쥬, 미네루)</option>
-                                <option value="신수 바·루타(물), 신수 바·루다니아(불), 신수 바·메도(바람), 신수 바·나보리스(번개), 마스터바이크 제로">🐘 [야숨] 4대 신수+바이크 (바·루타, 바·루다니아, 바·메도, 바·나보리스, 마스터바이크)</option>
-                                <option value="울트라핸드(조립), 스크래빌드(합성), 트레루프(도약), 리버레코(역재생), 블루프린트(설계)">✋ [왕눈] 오른손 능력 5종 (울트라핸드, 스크래빌드, 트레루프, 리버레코, 블루프린트)</option>
-                                <option value="미파의 기도(치유), 다르케르의 수호(방어), 리발의 용맹(비상), 우르보사의 분노(번개), 마스터소드(파마의검)">⚡ [야숨] 영걸의 가호+성검 (미파의 기도, 다르케르의 수호, 리발의 용맹, 우르보사의 분노, 마스터소드)</option>
-                                <option value="리모컨폭탄, 마그넷캐치, 타임록, 아이스메이커, 시커센서">📱 [야숨] 시커스톤 룬 5종 (리모컨폭탄, 마그넷캐치, 타임록, 아이스메이커, 시커센서)</option>
-                                <option value="바람(질풍), 불(화염), 물(청류), 번개(뇌전), 빛(시간), 어둠(영혼)">🌪️ [속성] 하이랄 비석·원소 속성 (바람, 불, 물, 번개, 빛, 어둠)</option>
-                                <option value="용기의 트라이포스(링크), 지혜의 트라이포스(젤다), 힘의 트라이포스(가논돌프), 마스터소드, 하일리아의 방패">🔺 [시리즈] 트라이포스 & 성물 (용기, 지혜, 힘, 마스터소드, 하일리아의 방패)</option>
-                            </optgroup>
+<!-- ... existing code ... -->
                             <optgroup label="교과 특화">
+                                <option value="총괄감독, 실험감독, 측정감독, 기록감독">🔬 과학/탐구 감독 (총괄감독, 실험감독, 측정감독, 기록감독)</option>
                                 <option value="실험책임, 관찰기록, 준비물관리, 안전요원">🧪 과학 실험 (실험, 관찰, 준비, 안전)</option>
                                 <option value="사회자, 찬성측, 반대측, 판정단">🗣️ 토론 수업 (사회, 찬성, 반대, 판정)</option>
                                 <option value="논리왕(풀이), 검토요원(검산), 질문술사(질문), 칠판담당">📐 수학 문제 (논리, 검토, 질문, 칠판)</option>
                                 <option value="감독(기획), 디자이너(제작), 발표자(설명), 자료수집(검색)">🎨 프로젝트 (기획, 제작, 발표, 검색)</option>
                             </optgroup>
-                            <optgroup label="재미/트렌디">
-                                <option value="캐리머신(리더), 팩트체커(검토), 설명요정(발표), 타임키퍼(시간)">😎 트렌디 (캐리머신, 팩트체커, 설명요정...)</option>
-                                <option value="부장(결정), 차장(발표), 대리(기록), 사원(실무)">💼 회사 직급 밈 (부장, 차장, 대리, 사원)</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    <input type="text" id="groupRoles" placeholder="예: 원이(파이리), 리브(리트), 미나미(갸루귀신), 제나(신라공주), 메이(메트)" class="w-full border-gray-300 rounded-lg shadow-sm bg-gray-50 border p-3 text-sm focus:border-amber-500 focus:ring-amber-500 text-gray-800 transition-colors duration-300">
-                </div>
-
-                <!-- 생성 버튼 -->
-                <button onclick="generateGroups()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 text-lg flex justify-center items-center gap-2">
-                    <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    최적의 모둠 구성하기
-                </button>
-                
-            </section>
-
+<!-- ... existing code ... -->
             <!-- 오른쪽: 결과 패널 -->
             <section id="resultSection" class="lg:col-span-8 scroll-mt-6 pb-8 h-full">
                 <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 min-h-[600px] h-full flex flex-col">
@@ -311,6 +18,10 @@
                         </div>
                         <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
                             <span id="summaryText" class="text-sm text-gray-500 font-medium mr-2 hidden sm:block whitespace-nowrap">대기 중...</span>
+                            <input id="resultFileInput" type="file" class="hidden" accept=".xlsx, .xls, .csv" onchange="handleResultFileUpload(event)" />
+                            <button onclick="document.getElementById('resultFileInput').click()" class="text-xs sm:text-sm bg-amber-50 hover:bg-amber-100 text-amber-800 px-3 py-2 rounded-lg border border-amber-200 shadow-sm flex items-center gap-1.5 font-semibold transition-colors shrink-0" title="이전에 엑셀로 저장한 모둠 구성 결과 파일을 불러옵니다">
+                                📂 결과 불러오기
+                            </button>
                             <div id="resultActionButtons" class="hidden flex gap-2 shrink-0">
                                 <button onclick="copyResults()" class="text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg border shadow-sm flex items-center gap-1.5 font-semibold transition-colors">
                                     📋 복사
@@ -321,7 +32,7 @@
                                 <button onclick="openPresentationNewWindow()" class="text-xs sm:text-sm bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-2 rounded-lg border border-purple-200 shadow-sm flex items-center gap-1.5 font-semibold transition-colors">
                                     🪟 새 창
                                 </button>
-                                <button onclick="exportToExcel()" class="text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-3 py-2 rounded-lg border border-emerald-200 shadow-sm flex items-center gap-1.5 font-semibold transition-colors">
+                                <button onclick="openExportModal()" class="text-xs sm:text-sm bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-3 py-2 rounded-lg border border-emerald-200 shadow-sm flex items-center gap-1.5 font-semibold transition-colors">
                                     💾 엑셀 저장
                                 </button>
                             </div>
@@ -339,11 +50,17 @@
                     
                     <!-- 실제 결과 표시 그리드 -->
                     <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 flex-grow content-start">
-                        <div class="col-span-full flex flex-col items-center justify-center text-center py-20 sm:py-32 text-gray-400">
+                        <div class="col-span-full flex flex-col items-center justify-center text-center py-20 sm:py-28 text-gray-400">
                             <div class="bg-gray-50 p-6 rounded-full mb-4 border border-gray-100 shadow-inner">
                                 <svg class="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                             </div>
                             <p class="text-sm sm:text-base leading-relaxed text-gray-500 font-medium">명렬표 파일을 업로드하거나 좌측 상단의 <span class="text-indigo-600 font-bold">[🧪 샘플 데이터로 체험]</span> 버튼을 누른 뒤<br class="hidden sm:block"><span class="text-indigo-500 font-bold">[최적의 모둠 구성하기]</span> 버튼을 클릭하세요.</p>
+                            <div class="mt-5 pt-4 border-t border-dashed border-gray-200 flex flex-col items-center gap-2">
+                                <span class="text-xs text-gray-400">이전에 저장해 둔 모둠 결과 엑셀 파일이 있으신가요?</span>
+                                <button onclick="document.getElementById('resultFileInput').click()" class="text-xs sm:text-sm bg-amber-50 hover:bg-amber-100 text-amber-800 px-4 py-2 rounded-xl border border-amber-200 shadow-sm font-bold transition-colors flex items-center gap-1.5">
+                                    📂 저장된 모둠 결과 엑셀 불러오기
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -353,7 +70,7 @@
         <!-- 제작자 표기 푸터 -->
         <footer class="mt-auto bg-gray-800 text-gray-400 py-6 text-center shrink-0">
             <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-center items-center gap-2 text-xs sm:text-sm">
-                <p>스마트 학급 모둠 구성 프로그램 2026.10.17 Ver. 1.05.00</p>
+                <p>스마트 학급 모둠 구성 프로그램 2026.10.26 Ver. 1.04.00</p>
                 <span class="hidden sm:inline">|</span>
                 <p>
                     Created by <span class="font-semibold text-gray-300">이진희</span> 
@@ -364,74 +81,66 @@
         </footer>
     </div>
 
-    <!-- 알림/확인용 커스텀 모달 -->
-    <div id="customDialogModal" class="hidden fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200">
-            <div class="p-4 sm:p-5 border-b bg-indigo-50 flex justify-between items-center">
-                <h3 id="customDialogTitle" class="font-bold text-base sm:text-lg text-indigo-900">알림</h3>
-                <button onclick="closeCustomDialog(false)" class="text-gray-400 hover:text-gray-700 p-1 rounded-lg">
+    <!-- 엑셀 저장 옵션 모달 -->
+    <div id="exportOptionsModal" class="hidden fixed inset-0 z-[85] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200">
+            <div class="p-4 sm:p-5 border-b bg-emerald-50 flex justify-between items-center">
+                <h3 class="font-bold text-base sm:text-lg text-emerald-900 flex items-center gap-2">
+                    <span>💾 엑셀 파일 저장 옵션</span>
+                </h3>
+                <button onclick="closeModal('exportOptionsModal')" class="text-gray-400 hover:text-gray-700 p-1 rounded-lg">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <div class="p-5 sm:p-6">
-                <p id="customDialogMessage" class="text-sm sm:text-base text-gray-700 whitespace-pre-line leading-relaxed"></p>
+            <div class="p-5 sm:p-6 space-y-4 text-sm text-gray-700">
+                <p class="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                    저장된 엑셀 파일은 우측 상단의 <strong>[📂 결과 불러오기]</strong> 버튼을 통해 언제든 다시 불러와 수정할 수 있습니다. 용도에 맞게 저장 옵션을 선택해 주세요.
+                </p>
+
+                <!-- 옵션 1: 기본 설정 포함 여부 -->
+                <label class="flex items-start gap-3 p-3.5 rounded-xl border border-gray-200 bg-gray-50/70 hover:bg-gray-100/70 cursor-pointer transition-colors">
+                    <input type="checkbox" id="exportIncludeSettings" checked onchange="onExportSettingsToggleChange()" class="mt-1 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500">
+                    <div>
+                        <div class="font-bold text-gray-800 text-sm">기본 모둠 설정 및 학급 데이터 함께 저장 (권장)</div>
+                        <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                            모둠 수, 인원 제한, 성별·MBTI·성적 분배 설정, 부여된 역할 목록 및 학급 명렬 데이터를 별도 시트(<code>프로그램설정</code>)에 저장하여 추후 불러올 때 환경을 그대로 복원합니다.
+                        </p>
+                    </div>
+                </label>
+
+                <!-- 옵션 2: 민감 정보(기피/짝꿍) 포함 여부 -->
+                <label id="exportSensitiveLabel" class="flex items-start gap-3 p-3.5 rounded-xl border border-rose-200 bg-rose-50/40 hover:bg-rose-50/80 cursor-pointer transition-colors">
+                    <input type="checkbox" id="exportIncludeSensitive" class="mt-1 w-4 h-4 text-rose-600 rounded border-gray-300 focus:ring-rose-500">
+                    <div>
+                        <div class="font-bold text-rose-800 text-sm flex items-center gap-1.5">
+                            <span>🔒 기피 학생 · 필수 짝꿍 설정도 함께 저장</span>
+                            <span class="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200 font-extrabold">교사 보관용</span>
+                        </div>
+                        <p class="text-xs text-rose-700/90 mt-1 leading-relaxed">
+                            체크 시 선생님께서 입력하신 <strong>기피 학생 분리 및 필수 짝꿍 번호</strong>가 엑셀 파일 내에 함께 기록됩니다.<br>
+                            <span class="underline font-semibold">학생이나 외부에 파일을 공유·배포할 경우에는 체크를 해제</span>해 주세요.
+                        </p>
+                    </div>
+                </label>
             </div>
             <div class="px-5 py-3.5 bg-gray-50 border-t flex justify-end gap-2">
-                <button id="customDialogCancelBtn" onclick="closeCustomDialog(false)" class="hidden px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 text-sm font-semibold transition-colors">취소</button>
-                <button id="customDialogConfirmBtn" onclick="closeCustomDialog(true)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-sm transition-colors">확인</button>
+                <button onclick="closeModal('exportOptionsModal')" class="px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 text-sm font-semibold transition-colors">취소</button>
+                <button onclick="confirmExportToExcel()" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-colors flex items-center gap-1.5">
+                    <span>💾 엑셀 다운로드</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- 사용 설명서 모달 -->
-    <div id="manualModal" class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+    <!-- 알림/확인용 커스텀 모달 -->
+<!-- ... existing code ... -->
             <div class="p-4 sm:p-5 border-b bg-indigo-50 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-lg sm:text-xl text-indigo-900 flex items-center gap-2">
                     <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    스마트 학급 모둠 구성 프로그램 사용 설명서 (Ver. 1.05.00)
+                    스마트 학급 모둠 구성 프로그램 사용 설명서 (Ver. 1.04.00)
                 </h3>
                 <button onclick="closeModal('manualModal')" class="text-gray-400 hover:text-indigo-800 hover:bg-indigo-200 p-1.5 rounded-lg transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <div class="p-5 sm:p-8 overflow-y-auto flex-1 bg-white text-gray-700 space-y-6 sm:space-y-8 leading-relaxed text-sm sm:text-base">
-                <div class="bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
-                    <p class="font-medium text-blue-900">선생님, 안녕하세요!</p>
-                    <p class="mt-2 text-blue-800">성별 균형, 학생 성향(MBTI), 교우 관계(단짝·기피 학생), <strong>모둠 인원수에 맞춘 성적 수준(A, B, C, D, E...) 균등 분배</strong>, 그리고 완성 후 <strong>마우스 드래그 앤 드롭을 통한 미세 조정</strong>까지 한 번에 해결할 수 있는 스마트 모둠 구성 도구입니다.</p>
-                    <p class="mt-2 text-xs font-bold text-red-500">※ 인터넷 서버를 거치지 않고 선생님의 PC(웹 브라우저)에서만 작동하므로 학생 개인정보 유출 위험이 전혀 없습니다.</p>
-                </div>
-
-                <section>
-                    <h4 class="text-lg font-bold text-gray-900 border-l-4 border-indigo-500 pl-3 mb-3">0. 시작하기 전 준비사항</h4>
-                    <p class="mb-2">학생 명렬표 파일(Excel 또는 CSV)의 첫 번째 줄(헤더)에 아래 항목이 포함되어야 합니다.</p>
-                    <ul class="list-disc pl-5 space-y-1 text-gray-600">
-                        <li><strong>필수 항목:</strong> <code class="bg-gray-100 px-1 rounded">반</code>, <code class="bg-gray-100 px-1 rounded">번호</code>, <code class="bg-gray-100 px-1 rounded">이름</code>, <code class="bg-gray-100 px-1 rounded">성별</code></li>
-                        <li><strong>선택 항목:</strong> <code class="bg-gray-100 px-1 rounded">학년</code>, <code class="bg-gray-100 px-1 rounded">MBTI</code>, <code class="bg-gray-100 px-1 rounded">성적</code>(또는 점수)</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h4 class="text-lg font-bold text-emerald-700 border-l-4 border-emerald-500 pl-3 mb-3">1. 모둠 인원수 맞춤형 성적 균등 분배 (NEW!)</h4>
-                    <ul class="list-disc pl-5 space-y-2 text-gray-600">
-                        <li>기존의 단순 3단계(상/중/하) 구분 대신, <strong>[모둠당 최대 인원]</strong> 설정값에 맞춰 성적 수준이 자동으로 세분화됩니다.</li>
-                        <li>예를 들어 모둠당 최대 인원이 <strong>5명</strong>이면 학급 성적을 <strong>A ~ E (5단계)</strong>로 나누고, <strong>4명</strong>이면 <strong>A ~ D (4단계)</strong>로 나누어 각 모둠에 모든 수준의 학생이 1명씩 골고루 들어가도록 배치합니다.</li>
-                        <li>프라이버시 보호를 위해 <strong>[결과에 표시]</strong> 스위치로 화면 노출 여부를 언제든 켜고 끌 수 있습니다.</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h4 class="text-lg font-bold text-indigo-700 border-l-4 border-indigo-500 pl-3 mb-3">2. 드래그 앤 드롭(Drag & Drop) 수동 미세 조정 (NEW!)</h4>
-                    <ul class="list-disc pl-5 space-y-2 text-gray-600">
-                        <li>모둠 구성이 완료된 후, 결과 화면에서 학생 카드를 마우스로 끌어다 놓아 미세하게 조정할 수 있습니다.</li>
-                        <li><strong>학생 간 맞교환:</strong> 학생 카드를 드래그하여 다른 모둠의 학생 카드 위에 놓으면 두 학생이 서로 맞교환됩니다. (모둠 내 역할 구조 유지)</li>
-                        <li><strong>모둠 간 이동:</strong> 학생 카드를 드래그하여 다른 모둠의 제목(상단 헤더) 영역에 놓으면 해당 모둠으로 소속이 이동됩니다.</li>
-                        <li><strong>터치/클릭 지원:</strong> 태블릿이나 모바일에서는 학생 한 명을 클릭해 선택한 뒤, 다른 학생이나 모둠 제목을 클릭하면 동일하게 교환/이동됩니다.</li>
-                        <li>수동으로 이동한 결과 역시 <strong>남녀 인원수가 자동 재계산</strong>되며, [복사], [팝업뷰], [새 창], [엑셀 저장]에 즉시 반영됩니다.</li>
-                    </ul>
-                </section>
-
+<!-- ... existing code ... -->
                 <section>
                     <h4 class="text-lg font-bold text-rose-600 border-l-4 border-rose-500 pl-3 mb-3">3. 기피 학생 분리 & 필수 짝꿍 묶기</h4>
                     <ul class="list-disc pl-5 space-y-2 text-gray-600">
@@ -439,228 +148,55 @@
                         <li><strong>필수 짝꿍 묶기:</strong> <code>1번, 5번, 12번은 같은 조로 해줘</code>라고 적으면 한 모둠으로 묶어 배정합니다.</li>
                     </ul>
                 </section>
+
+                <section>
+                    <h4 class="text-lg font-bold text-amber-700 border-l-4 border-amber-500 pl-3 mb-3">4. 엑셀 결과 불러오기 & 민감 설정 보호 저장 (NEW!)</h4>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-600">
+                        <li><strong>엑셀 저장 옵션 선택:</strong> <strong>[💾 엑셀 저장]</strong> 클릭 시 일반 모둠 설정과 <strong>민감한 교우관계 조건(기피 학생·필수 짝꿍)</strong>을 함께 저장할지 선택할 수 있습니다. 학생들에게 공유할 파일은 민감 조건 체크를 해제하여 안전하게 저장하세요.</li>
+                        <li><strong>저장된 결과 다시 불러오기:</strong> 우측 상단의 <strong>[📂 결과 불러오기]</strong> 버튼을 눌러 이전에 저장한 모둠 결과 엑셀 파일을 선택하면, 당시 구성된 모둠 배치와 저장된 설정값들이 화면에 그대로 복원되어 이어서 미세 조정하거나 프리젠테이션 뷰로 띄울 수 있습니다.</li>
+                    </ul>
+                </section>
             </div>
             
             <div class="p-4 border-t bg-gray-50 text-center shrink-0">
-                <button onclick="closeModal('manualModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-8 rounded-xl shadow-md transition-colors">
-                    설명서 닫기
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 명단 확인 모달 -->
-    <div id="studentListModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 fade-in">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden border border-gray-200">
-            <div class="p-5 border-b bg-gray-50 flex justify-between items-center">
-                <h3 id="studentListTitle" class="font-bold text-lg text-gray-800">학생 명단</h3>
-                <button onclick="closeModal('studentListModal')" class="text-gray-400 hover:text-gray-800 hover:bg-gray-200 p-1.5 rounded-lg transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="p-4 overflow-y-auto flex-1 bg-gray-50/50">
-                <ul id="studentListContent" class="space-y-2"></ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- 프리젠테이션(팝업뷰) 모달 -->
-    <div id="presentationModal" class="hidden fixed inset-0 z-50 bg-gray-900 text-white overflow-y-auto fade-in">
-        <div class="p-4 sm:p-8 min-h-screen">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 border-b border-gray-700 pb-4 gap-4">
-                <h2 id="presentationTitle" class="text-2xl sm:text-4xl font-bold text-indigo-300 tracking-tight">모둠 구성 결과</h2>
-                <button onclick="closeModal('presentationModal')" class="bg-gray-800 hover:bg-gray-700 border border-gray-600 px-5 py-2.5 rounded-xl text-sm sm:text-base font-semibold transition-colors flex items-center gap-2">
-                    돌아가기 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div id="presentationGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"></div>
-        </div>
-    </div>
-
-    <script>
-        let allClassesData = {};
-        let globalGroups = [];
-        let globalClassName = "";
-        let dialogResolveCallback = null;
-
-        // 드래그 앤 드롭 및 클릭 교환용 상태 변수
-        let draggedItem = null; // { groupIdx, studentIdx }
-        let selectedForSwap = null; // { groupIdx, studentIdx }
-
-        function showToast(message, type = 'indigo') {
-            const container = document.getElementById('toastContainer');
-            if (!container) return;
-            const toast = document.createElement('div');
-            const bgClass = type === 'amber' ? 'bg-amber-600' : (type === 'rose' ? 'bg-rose-600' : 'bg-indigo-600');
-            toast.className = `${bgClass} text-white text-xs sm:text-sm font-semibold px-4 py-3 rounded-xl shadow-lg fade-in pointer-events-auto flex items-center gap-2 max-w-md`;
-            toast.innerHTML = `<span>${message}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transition = 'opacity 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3200);
-        }
-
-        function showNotice(message, title = '알림') {
-            document.getElementById('customDialogTitle').innerText = title;
-            document.getElementById('customDialogMessage').innerText = message;
-            document.getElementById('customDialogCancelBtn').classList.add('hidden');
-            document.getElementById('customDialogModal').classList.remove('hidden');
-            dialogResolveCallback = null;
-        }
-
-        function showConfirm(message, title = '확인') {
-            return new Promise((resolve) => {
-                document.getElementById('customDialogTitle').innerText = title;
-                document.getElementById('customDialogMessage').innerText = message;
-                document.getElementById('customDialogCancelBtn').classList.remove('hidden');
-                document.getElementById('customDialogModal').classList.remove('hidden');
-                dialogResolveCallback = resolve;
-            });
-        }
-
-        function closeCustomDialog(result) {
-            document.getElementById('customDialogModal').classList.add('hidden');
-            if (dialogResolveCallback) {
-                const cb = dialogResolveCallback;
-                dialogResolveCallback = null;
-                cb(result);
-            }
-        }
-
-        // 모둠당 최대 인원수(maxPerGroup)를 기반으로 성적 수준 단계 수(K) 반환 (최소 2단계 ~ 최대 15단계)
-        function getTierCount() {
-            const maxInput = document.getElementById('maxPerGroup');
-            let count = maxInput ? parseInt(maxInput.value, 10) : 5;
-            if (isNaN(count) || count < 2) count = 2;
-            if (count > 15) count = 15;
-            return count;
-        }
-
-        // 단계 수(K)에 맞춰 ['A', 'B', 'C', 'D', 'E'...] 배열 생성
-        function getTierLabels(tierCount = getTierCount()) {
-            return Array.from({ length: tierCount }, (_, idx) => String.fromCharCode(65 + idx));
-        }
-
-        // 모둠당 최대 인원 변경 시 성적 균등 분배 옵션 텍스트 동적 업데이트
-        function updateScoreOptionLabel() {
-            const K = getTierCount();
-            const labels = getTierLabels(K);
-            const firstChar = labels[0];
-            const lastChar = labels[labels.length - 1];
-
-            const descEl = document.getElementById('scoreOptionDesc');
-            const optEl = document.getElementById('scoreEvenOption');
-            if (descEl) {
-                descEl.innerText = `모둠당 최대 인원수(${K}명)에 맞춰 ${firstChar}~${lastChar} (${K}단계) 수준으로 나누어 고르게 배정합니다.`;
-            }
-            if (optEl) {
-                optEl.innerText = `모둠 최대 인원 맞춤: ${K}단계 (${firstChar}~${lastChar}) 균등 분배`;
-            }
-
-            if (globalGroups && globalGroups.length > 0) {
-                renderGroups(globalGroups, globalClassName);
-            }
-        }
-
-        function onClassOrGroupCountChange() {
-            const selectedClass = document.getElementById('classSelect')?.value;
-            const numGroups = parseInt(document.getElementById('numGroups')?.value, 10) || 6;
-            if (selectedClass && allClassesData[selectedClass] && allClassesData[selectedClass].length > 0) {
-                const total = allClassesData[selectedClass].length;
-                const minCap = Math.max(2, Math.floor(total / numGroups));
-                const maxCap = Math.max(2, Math.ceil(total / numGroups));
-                document.getElementById('minPerGroup').value = minCap;
-                document.getElementById('maxPerGroup').value = maxCap;
-                document.getElementById('maxMale').value = Math.max(2, Math.ceil(maxCap / 2) + 1);
-                document.getElementById('maxFemale').value = Math.max(2, Math.ceil(maxCap / 2) + 1);
-            }
-            updateScoreOptionLabel();
-        }
-
-        // 학급 내 학생들의 성적을 기준으로 A, B, C, D, E... 등급 맵 생성
-        function getClassTiers(className, customTierCount = null) {
-            const students = allClassesData[className];
-            if (!students || students.length === 0) return {};
-            const K = customTierCount || getTierCount();
-            const labels = getTierLabels(K);
-
-            let sorted = [...students].sort((a, b) => {
-                let sA = isNaN(a.score) ? -999999 : a.score;
-                let sB = isNaN(b.score) ? -999999 : b.score;
-                if (sB !== sA) return sB - sA;
-                return a.number - b.number;
-            });
-
-            let N = sorted.length;
-            let tiers = {};
-            sorted.forEach((s, idx) => {
-                const tierIdx = Math.min(K - 1, Math.floor((idx * K) / N));
-                tiers[s.number] = labels[tierIdx];
-            });
-            return tiers;
-        }
-
-        function shouldDisplayMbti() {
-            const toggle = document.getElementById('mbtiDisplayToggle');
-            return toggle ? toggle.checked : true;
-        }
-
-        function shouldDisplayScore() {
-            const toggle = document.getElementById('scoreDisplayToggle');
-            const hasScoreDiv = document.getElementById('scoreOptionsDiv') && !document.getElementById('scoreOptionsDiv').classList.contains('hidden');
-            return (toggle ? toggle.checked : true) && hasScoreDiv;
-        }
-
-        function toggleMbtiDisplay() {
-            if (globalGroups && globalGroups.length > 0) renderGroups(globalGroups, globalClassName);
-        }
-
-        function toggleScoreDisplay() {
-            if (globalGroups && globalGroups.length > 0) renderGroups(globalGroups, globalClassName);
-        }
-
-        // 엑셀 파일 없이도 즉시 기능을 체험할 수 있는 샘플 데이터 로드 함수
-        function loadSampleData() {
-            const sampleRows = [
-                { '학년': 1, '반': 1, '번호': 1, '이름': '강하늘', '성별': '남', 'MBTI': 'ENFP', '성적': 96 },
-                { '학년': 1, '반': 1, '번호': 2, '이름': '김민지', '성별': '여', 'MBTI': 'ISTJ', '성적': 94 },
-                { '학년': 1, '반': 1, '번호': 3, '이름': '김서준', '성별': '남', 'MBTI': 'ENTP', '성적': 92 },
-                { '학년': 1, '반': 1, '번호': 4, '이름': '김수아', '성별': '여', 'MBTI': 'ISFJ', '성적': 90 },
-                { '학년': 1, '반': 1, '번호': 5, '이름': '류현우', '성별': '남', 'MBTI': 'INTJ', '성적': 89 },
-                { '학년': 1, '반': 1, '번호': 6, '이름': '박서연', '성별': '여', 'MBTI': 'ESFP', '성적': 88 },
-                { '학년': 1, '반': 1, '번호': 7, '이름': '박지호', '성별': '남', 'MBTI': 'INFJ', '성적': 86 },
-                { '학년': 1, '반': 1, '번호': 8, '이름': '배소율', '성별': '여', 'MBTI': 'ENFJ', '성적': 85 },
-                { '학년': 1, '반': 1, '번호': 9, '이름': '서동현', '성별': '남', 'MBTI': 'ISTP', '성적': 84 },
-                { '학년': 1, '반': 1, '번호': 10, '이름': '손예진', '성별': '여', 'MBTI': 'INFP', '성적': 83 },
-                { '학년': 1, '반': 1, '번호': 11, '이름': '송민호', '성별': '남', 'MBTI': 'ESTP', '성적': 81 },
-                { '학년': 1, '반': 1, '번호': 12, '이름': '신유나', '성별': '여', 'MBTI': 'ESFJ', '성적': 80 },
-                { '학년': 1, '반': 1, '번호': 13, '이름': '안재현', '성별': '남', 'MBTI': 'INTP', '성적': 79 },
-                { '학년': 1, '반': 1, '번호': 14, '이름': '양지원', '성별': '여', 'MBTI': 'ISFP', '성적': 78 },
-                { '학년': 1, '반': 1, '번호': 15, '이름': '오세훈', '성별': '남', 'MBTI': 'ENTJ', '성적': 76 },
-                { '학년': 1, '반': 1, '번호': 16, '이름': '윤채원', '성별': '여', 'MBTI': 'ENFP', '성적': 75 },
-                { '학년': 1, '반': 1, '번호': 17, '이름': '이도현', '성별': '남', 'MBTI': 'ESTJ', '성적': 74 },
-                { '학년': 1, '반': 1, '번호': 18, '이름': '이서아', '성별': '여', 'MBTI': 'INFJ', '성적': 72 },
-                { '학년': 1, '반': 1, '번호': 19, '이름': '이준영', '성별': '남', 'MBTI': 'ISFJ', '성적': 71 },
-                { '학년': 1, '반': 1, '번호': 20, '이름': '임나연', '성별': '여', 'MBTI': 'ENTP', '성적': 69 },
-                { '학년': 1, '반': 1, '번호': 21, '이름': '장원영', '성별': '여', 'MBTI': 'ESFP', '성적': 68 },
-                { '학년': 1, '반': 1, '번호': 22, '이름': '정우성', '성별': '남', 'MBTI': 'ISTJ', '성적': 66 },
-                { '학년': 1, '반': 1, '번호': 23, '이름': '정하윤', '성별': '여', 'MBTI': 'INFP', '성적': 65 },
-                { '학년': 1, '반': 1, '번호': 24, '이름': '조규현', '성별': '남', 'MBTI': 'ENFJ', '성적': 64 },
-                { '학년': 1, '반': 1, '번호': 25, '이름': '조수민', '성별': '여', 'MBTI': 'ISTP', '성적': 62 },
-                { '학년': 1, '반': 1, '번호': 26, '이름': '최민준', '성별': '남', 'MBTI': 'INTJ', '성적': 60 },
-                { '학년': 1, '반': 1, '번호': 27, '이름': '최예나', '성별': '여', 'MBTI': 'ESFJ', '성적': 58 },
-                { '학년': 1, '반': 1, '번호': 28, '이름': '하준서', '성별': '남', 'MBTI': 'ESTP', '성적': 56 },
-                { '학년': 1, '반': 1, '번호': 29, '이름': '한소희', '성별': '여', 'MBTI': 'ISFP', '성적': 54 },
-                { '학년': 1, '반': 1, '번호': 30, '이름': '황민현', '성별': '남', 'MBTI': 'INTP', '성적': 52 }
-            ];
-            document.getElementById('numGroups').value = '6';
-            parseStudentData(sampleRows, '샘플_명렬표(30명_성적포함).xlsx');
-            generateGroups();
-        }
-
+<!-- ... existing code ... -->
         function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    // 만약 업로드한 파일이 이전에 저장한 '모둠구성결과' 파일인 경우 안내
+                    if (json.length > 0 && (json[0]['모둠명'] !== undefined || workbook.SheetNames.includes('프로그램설정'))) {
+                        const loadAsResult = await showConfirm(
+                            "선택하신 파일은 이전에 저장된 [모둠 구성 결과] 파일로 보입니다.\n\n모둠 구성 결과와 설정을 바로 복원하시겠습니까?\n([취소]를 누르면 일반 학생 명렬표로만 불러옵니다.)",
+                            "저장된 모둠 결과 파일 감지"
+                        );
+                        if (loadAsResult) {
+                            restoreFromResultWorkbook(workbook, file.name);
+                            event.target.value = '';
+                            return;
+                        }
+                    }
+
+                    parseStudentData(json, file.name);
+                } catch(error) {
+                    showNotice("파일을 읽는 중 오류가 발생했습니다. 올바른 엑셀/CSV 파일인지 확인해주세요.", "파일 오류");
+                }
+                event.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 저장된 모둠 결과 엑셀 파일을 직접 불러오는 함수
+        function handleResultFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -669,64 +205,152 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet);
-                    parseStudentData(json, file.name);
-                } catch(error) {
-                    showNotice("파일을 읽는 중 오류가 발생했습니다. 올바른 엑셀/CSV 파일인지 확인해주세요.", "파일 오류");
+                    restoreFromResultWorkbook(workbook, file.name);
+                } catch (error) {
+                    showNotice("결과 파일을 읽는 중 오류가 발생했습니다. 올바른 엑셀 파일인지 확인해주세요.", "파일 불러오기 오류");
                 }
+                event.target.value = '';
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function parseStudentData(json, filename) {
-            allClassesData = {};
-            let totalParsed = 0;
+        function restoreFromResultWorkbook(workbook, filename) {
+            const resultSheetName = workbook.SheetNames.find(n => n.includes('모둠구성결과')) || workbook.SheetNames[0];
+            const resultSheet = workbook.Sheets[resultSheetName];
+            const rows = XLSX.utils.sheet_to_json(resultSheet);
+
+            if (!rows || rows.length === 0) {
+                showNotice("파일에 데이터가 없습니다.", "불러오기 실패");
+                return;
+            }
+
+            const firstKeys = Object.keys(rows[0]);
+            const groupColKey = firstKeys.find(k => k.replace(/\s/g, '').includes('모둠'));
+            const numColKey = firstKeys.find(k => k.replace(/\s/g, '').includes('번호') || k.replace(/\s/g, '') === '번');
+            const nameColKey = firstKeys.find(k => k.replace(/\s/g, '').includes('이름') || k.replace(/\s/g, '').includes('성명'));
+
+            if (!groupColKey || !numColKey || !nameColKey) {
+                showNotice("저장된 모둠 구성 결과 형식이 아닙니다.\n('모둠명', '번호', '이름' 열이 포함된 결과 엑셀 파일을 선택해 주세요.)", "형식 불일치 안내");
+                return;
+            }
+
+            // 1. '프로그램설정' 시트가 있는지 확인하여 설정값 및 원본 학생 데이터 복원
+            let restoredSettings = null;
+            let sensitiveRestored = false;
+            const settingSheetName = workbook.SheetNames.find(n => n.includes('프로그램설정'));
+            if (settingSheetName) {
+                const settingSheet = workbook.Sheets[settingSheetName];
+                const settingRows = XLSX.utils.sheet_to_json(settingSheet);
+                const jsonRow = settingRows.find(r => r['항목'] === '원본데이터_JSON');
+                if (jsonRow && jsonRow['설정값']) {
+                    try {
+                        restoredSettings = JSON.parse(jsonRow['설정값']);
+                    } catch (err) {
+                        restoredSettings = null;
+                    }
+                }
+            }
+
+            // 학급명 추론 (설정 시트에 있으면 사용, 없으면 파일명에서 추출)
+            let targetClassName = '불러온 학급';
+            if (restoredSettings && restoredSettings.className) {
+                targetClassName = restoredSettings.className;
+            } else {
+                const match = filename.match(/모둠구성_(.+?)_\d{8}/);
+                if (match && match[1]) targetClassName = match[1];
+            }
+
+            // 원본 학생 맵 (MBTI나 점수가 결과 시트에서 숨겨진 채 저장되었더라도 설정 시트에 백업되어 있다면 복원)
+            const backupStudentMap = {};
+            if (restoredSettings && Array.isArray(restoredSettings.classStudents)) {
+                restoredSettings.classStudents.forEach(s => {
+                    backupStudentMap[s.number] = s;
+                });
+            }
+
+            // 2. '모둠구성결과' 시트로부터 모둠 및 학생 목록 재구성
+            const groupsMap = new Map();
+            const reconstructedStudents = [];
             let hasAnyScore = false;
 
-            json.forEach(row => {
+            rows.forEach(row => {
                 const keys = Object.keys(row);
-                const gradeKey = keys.find(k => k.replace(/\s/g,'').includes('학년'));
-                const classKey = keys.find(k => k.replace(/\s/g,'').includes('반') && !k.includes('일반'));
-                const numKey = keys.find(k => k.replace(/\s/g,'').includes('번호') || k.replace(/\s/g,'') === '번');
-                const nameKey = keys.find(k => k.replace(/\s/g,'').includes('이름') || k.replace(/\s/g,'').includes('성명'));
-                const genderKey = keys.find(k => k.replace(/\s/g,'').includes('성별') || k.replace(/\s/g,'').includes('남여') || k.replace(/\s/g,'').includes('남녀'));
-                const mbtiKey = keys.find(k => k.toUpperCase().replace(/\s/g,'').includes('MBTI'));
-                const scoreKey = keys.find(k => k.replace(/\s/g,'').includes('성적') || k.replace(/\s/g,'').includes('점수') || k.toUpperCase().replace(/\s/g,'').includes('SCORE'));
+                const gKey = keys.find(k => k.replace(/\s/g, '').includes('모둠'));
+                const nKey = keys.find(k => k.replace(/\s/g, '').includes('번호') || k.replace(/\s/g, '') === '번');
+                const nmKey = keys.find(k => k.replace(/\s/g, '').includes('이름') || k.replace(/\s/g, '').includes('성명'));
+                const gdKey = keys.find(k => k.replace(/\s/g, '').includes('성별'));
+                const mbKey = keys.find(k => k.toUpperCase().replace(/\s/g, '').includes('MBTI'));
+                const scKey = keys.find(k => k.replace(/\s/g, '').includes('원점수') || k.replace(/\s/g, '').includes('점수') || k.replace(/\s/g, '') === '성적');
+                const rlKey = keys.find(k => k.replace(/\s/g, '').includes('역할'));
 
-                if (numKey && nameKey) {
-                    let classNum = '';
-                    if (gradeKey && row[gradeKey]) {
-                        let gStr = String(row[gradeKey]).trim();
-                        classNum += gStr.includes('학년') ? gStr + ' ' : gStr + '학년 ';
-                    }
-                    if (classKey && row[classKey]) {
-                        let cStr = String(row[classKey]).trim();
-                        classNum += cStr.includes('반') ? cStr : cStr + '반';
-                    }
-                    classNum = classNum === '' ? '전체반' : classNum.trim();
-                    
-                    if (!allClassesData[classNum]) allClassesData[classNum] = [];
+                const rawGroupStr = String(row[gKey] || '1');
+                const gIdMatch = rawGroupStr.match(/\d+/);
+                const groupId = gIdMatch ? parseInt(gIdMatch[0], 10) : 1;
 
-                    let parsedScore = (scoreKey && row[scoreKey] !== undefined && String(row[scoreKey]).trim() !== '')
-                        ? parseFloat(String(row[scoreKey]).replace(/[^0-9.-]/g, ''))
-                        : NaN;
-                    
-                    if (!isNaN(parsedScore)) {
-                        hasAnyScore = true;
-                    }
+                const sNum = parseInt(row[nKey], 10);
+                const sName = String(row[nmKey] || '').trim();
+                if (isNaN(sNum) || !sName) return;
 
-                    allClassesData[classNum].push({
-                        number: parseInt(row[numKey], 10),
-                        name: String(row[nameKey]).trim(),
-                        gender: (genderKey && row[genderKey]) ? String(row[genderKey]).trim() : '남',
-                        mbti: (mbtiKey && row[mbtiKey]) ? String(row[mbtiKey]).toUpperCase().trim() : '',
-                        score: parsedScore
-                    });
-                    totalParsed++;
+                const backup = backupStudentMap[sNum] || {};
+                const sGender = (gdKey && row[gdKey]) ? String(row[gdKey]).trim() : (backup.gender || '남');
+                const sMbti = (mbKey && row[mbKey] !== undefined && String(row[mbKey]).trim() !== '')
+                    ? String(row[mbKey]).toUpperCase().trim()
+                    : (backup.mbti || '');
+
+                let sScore = NaN;
+                if (scKey && row[scKey] !== undefined && String(row[scKey]).trim() !== '') {
+                    sScore = parseFloat(String(row[scKey]).replace(/[^0-9.-]/g, ''));
+                } else if (backup.score !== undefined && backup.score !== null && !isNaN(backup.score)) {
+                    sScore = parseFloat(backup.score);
                 }
+                if (!isNaN(sScore)) hasAnyScore = true;
+
+                const sRole = (rlKey && row[rlKey] !== undefined) ? String(row[rlKey]).trim() : '';
+
+                const studentObj = {
+                    number: sNum,
+                    name: sName,
+                    gender: sGender,
+                    mbti: sMbti,
+                    score: sScore,
+                    role: sRole
+                };
+
+                reconstructedStudents.push({
+                    number: sNum,
+                    name: sName,
+                    gender: sGender,
+                    mbti: sMbti,
+                    score: sScore
+                });
+
+                if (!groupsMap.has(groupId)) {
+                    groupsMap.set(groupId, {
+                        id: groupId,
+                        capacity: 0,
+                        students: [],
+                        males: 0,
+                        females: 0
+                    });
+                }
+                const grp = groupsMap.get(groupId);
+                grp.students.push(studentObj);
             });
+
+            const loadedGroups = Array.from(groupsMap.values()).sort((a, b) => a.id - b.id);
+            if (loadedGroups.length === 0) {
+                showNotice("유효한 모둠 데이터를 찾을 수 없습니다.", "불러오기 실패");
+                return;
+            }
+
+            loadedGroups.forEach(g => {
+                g.capacity = g.students.length;
+                g.males = g.students.filter(s => s.gender.includes('남')).length;
+                g.females = g.students.filter(s => s.gender.includes('여')).length;
+            });
+
+            // 3. 학급 데이터 등록 및 드롭다운 UI 동기화
+            allClassesData[targetClassName] = reconstructedStudents.sort((a, b) => a.number - b.number);
 
             const statusEl = document.getElementById('uploadStatus');
             const classSelectionDiv = document.getElementById('classSelectionDiv');
@@ -734,958 +358,110 @@
             const scoreOptionsDiv = document.getElementById('scoreOptionsDiv');
 
             statusEl.classList.remove('hidden');
-            if (totalParsed > 0) {
-                statusEl.innerHTML = `✅ <b>${filename}</b> - 총 ${totalParsed}명 데이터 인식 완료`;
-                statusEl.className = "mt-3 text-xs sm:text-sm text-green-600 font-bold bg-green-50 p-2 rounded-lg border border-green-100 inline-block";
-                
-                classSelect.innerHTML = '';
-                const classNames = Object.keys(allClassesData).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
-                classNames.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c;
-                    const suffix = (c === '전체반' || c.endsWith('반')) ? '' : '반';
-                    opt.textContent = `${c}${suffix} (${allClassesData[c].length}명)`;
-                    classSelect.appendChild(opt);
-                });
-                classSelectionDiv.classList.remove('hidden');
+            statusEl.innerHTML = `📂 <b>${filename}</b> - 모둠 결과 복원 완료 (${reconstructedStudents.length}명)`;
+            statusEl.className = "mt-3 text-xs sm:text-sm text-indigo-700 font-bold bg-indigo-50 p-2 rounded-lg border border-indigo-200 inline-block";
 
-                if (hasAnyScore) {
-                    scoreOptionsDiv.classList.remove('hidden');
-                } else {
-                    scoreOptionsDiv.classList.add('hidden');
-                    document.getElementById('scoreBalance').value = 'none';
-                }
+            classSelect.innerHTML = '';
+            Object.keys(allClassesData).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                const suffix = (c === '전체반' || c.endsWith('반') || c === '불러온 학급') ? '' : '반';
+                opt.textContent = `${c}${suffix} (${allClassesData[c].length}명)`;
+                classSelect.appendChild(opt);
+            });
+            classSelect.value = targetClassName;
+            classSelectionDiv.classList.remove('hidden');
 
-                onClassOrGroupCountChange();
+            if (hasAnyScore) {
+                scoreOptionsDiv.classList.remove('hidden');
             } else {
-                statusEl.innerHTML = `❌ 인식된 데이터가 없습니다. (필수 열: 반, 번호, 이름, 성별 확인)`;
-                statusEl.className = "mt-3 text-xs sm:text-sm text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100 inline-block";
-                classSelectionDiv.classList.add('hidden');
                 scoreOptionsDiv.classList.add('hidden');
             }
-        }
 
-        function parseConstraints(text) {
-            const lines = text.split('\n');
-            const avoidancePairs = [];
-            lines.forEach(line => {
-                if(line.includes("예시") || line.trim() === "") return;
-                const numbers = line.match(/\d+/g);
-                if (numbers && numbers.length >= 2) {
-                    const subject = parseInt(numbers[0], 10);
-                    for (let i = 1; i < numbers.length; i++) {
-                        const target = parseInt(numbers[i], 10);
-                        avoidancePairs.push([subject, target]);
-                        avoidancePairs.push([target, subject]);
-                    }
-                }
-            });
-            return avoidancePairs;
-        }
+            // 4. 저장된 설정값이 있으면 UI 컨트롤에 반영, 없으면 불러온 모둠 구조에 맞춰 기본 반영
+            if (restoredSettings) {
+                if (restoredSettings.numGroups) document.getElementById('numGroups').value = String(restoredSettings.numGroups);
+                if (restoredSettings.sortOrder) document.getElementById('sortOrder').value = restoredSettings.sortOrder;
+                if (restoredSettings.minPerGroup) document.getElementById('minPerGroup').value = restoredSettings.minPerGroup;
+                if (restoredSettings.maxPerGroup) document.getElementById('maxPerGroup').value = restoredSettings.maxPerGroup;
+                if (restoredSettings.maxMale !== undefined) document.getElementById('maxMale').value = restoredSettings.maxMale;
+                if (restoredSettings.maxFemale !== undefined) document.getElementById('maxFemale').value = restoredSettings.maxFemale;
+                if (restoredSettings.mbtiBalance) document.getElementById('mbtiBalance').value = restoredSettings.mbtiBalance;
+                if (restoredSettings.mbtiDisplay !== undefined) document.getElementById('mbtiDisplayToggle').checked = !!restoredSettings.mbtiDisplay;
+                if (restoredSettings.scoreBalance && hasAnyScore) document.getElementById('scoreBalance').value = restoredSettings.scoreBalance;
+                if (restoredSettings.scoreDisplay !== undefined) document.getElementById('scoreDisplayToggle').checked = !!restoredSettings.scoreDisplay;
+                if (restoredSettings.groupRoles !== undefined) document.getElementById('groupRoles').value = restoredSettings.groupRoles;
 
-        function parseInclusions(text) {
-            const lines = text.split('\n');
-            let bundles = [];
-            lines.forEach(line => {
-                if(line.includes("예시") || line.trim() === "") return;
-                const numbers = line.match(/\d+/g);
-                if (numbers && numbers.length >= 2) {
-                    bundles.push(numbers.map(n => parseInt(n, 10)));
-                }
-            });
-            let merged = [];
-            for (let b of bundles) {
-                let overlapIndices = [];
-                for (let i = 0; i < merged.length; i++) {
-                    if (b.some(n => merged[i].includes(n))) overlapIndices.push(i);
-                }
-                if (overlapIndices.length === 0) {
-                    merged.push([...new Set(b)]);
+                if (restoredSettings.includeSensitive) {
+                    document.getElementById('constraints').value = restoredSettings.constraints || '';
+                    document.getElementById('inclusions').value = restoredSettings.inclusions || '';
+                    sensitiveRestored = true;
                 } else {
-                    let newSet = new Set(b);
-                    for (let i = overlapIndices.length - 1; i >= 0; i--) {
-                        merged[overlapIndices[i]].forEach(n => newSet.add(n));
-                        merged.splice(overlapIndices[i], 1);
-                    }
-                    merged.push([...newSet]);
+                    document.getElementById('constraints').value = '';
+                    document.getElementById('inclusions').value = '';
                 }
-            }
-            return merged;
-        }
-
-        function shuffleArray(array) {
-            const newArray = [...array];
-            for (let i = newArray.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-            }
-            return newArray;
-        }
-
-        function toggleConstraints() { toggleSection('constraintsContent', 'toggleConstraintsBtn'); }
-        function toggleInclusions() { toggleSection('inclusionsContent', 'toggleInclusionsBtn'); }
-        function toggleSection(contentId, btnId) {
-            const content = document.getElementById(contentId);
-            const btn = document.getElementById(btnId);
-            const span = btn.querySelector('span');
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                span.innerText = '숨기기';
             } else {
-                content.classList.add('hidden');
-                span.innerText = '보이기';
-            }
-        }
+                const counts = loadedGroups.map(g => g.students.length);
+                const maxMalesInLoaded = Math.max(...loadedGroups.map(g => g.males));
+                const maxFemalesInLoaded = Math.max(...loadedGroups.map(g => g.females));
+                const rolesSet = new Set();
+                loadedGroups.forEach(g => g.students.forEach(s => { if (s.role) rolesSet.add(s.role); }));
 
-        function applyRolePreset() {
-            const presetSelect = document.getElementById('rolePreset');
-            const roleInput = document.getElementById('groupRoles');
-            if (presetSelect.value !== "") {
-                roleInput.value = presetSelect.value;
-                roleInput.classList.add('bg-amber-100', 'border-amber-400');
-                setTimeout(() => roleInput.classList.remove('bg-amber-100', 'border-amber-400'), 500);
-                if (globalGroups && globalGroups.length > 0) {
-                    reassignRolesOnly(false);
-                    showToast("🎭 선택한 추천 역할 세트가 현재 모둠에 즉시 반영되었습니다!");
+                document.getElementById('numGroups').value = String(Math.min(12, Math.max(2, loadedGroups.length)));
+                document.getElementById('minPerGroup').value = Math.min(...counts);
+                document.getElementById('maxPerGroup').value = Math.max(...counts);
+                document.getElementById('maxMale').value = maxMalesInLoaded;
+                document.getElementById('maxFemale').value = maxFemalesInLoaded;
+                if (rolesSet.size > 0) {
+                    document.getElementById('groupRoles').value = Array.from(rolesSet).join(', ');
                 }
             }
+
+            updateScoreOptionLabel();
+            selectedForSwap = null;
+            renderGroups(loadedGroups, targetClassName);
+
+            if (restoredSettings && sensitiveRestored) {
+                showToast("📂 저장된 모둠 결과와 모든 설정(기피/짝꿍 조건 포함)을 성공적으로 불러왔습니다!");
+            } else if (restoredSettings) {
+                showToast("📂 저장된 모둠 결과와 기본 설정을 불러왔습니다. (민감 조건은 제외된 파일입니다)");
+            } else {
+                showToast("📂 저장된 모둠 구성 결과를 성공적으로 불러왔습니다!");
+            }
         }
 
-        function reassignRolesOnly(showMsg = true) {
+        function parseStudentData(json, filename) {
+<!-- ... existing code ... -->
+        function openExportModal() {
             if (!globalGroups || globalGroups.length === 0) {
-                if (showMsg) showToast("먼저 모둠을 구성한 뒤 역할을 다시 배정해 보세요.", "amber");
+                showNotice("먼저 모둠을 구성한 뒤 엑셀 저장을 진행해 주세요.");
                 return;
             }
-            const rolesList = document.getElementById('groupRoles').value.split(',').map(r => r.trim()).filter(r => r !== '');
-            globalGroups.forEach(group => {
-                if (rolesList.length > 0) {
-                    const shuffledRoles = shuffleArray(rolesList);
-                    group.students.forEach((student, idx) => {
-                        student.role = shuffledRoles[idx] || '';
-                    });
-                } else {
-                    group.students.forEach(student => { student.role = ''; });
-                }
-            });
-            onSortOrderChange();
-            if (showMsg) showToast("🎲 현재 모둠 구성은 유지하고 역할만 새롭게 배정했습니다!");
+            document.getElementById('exportOptionsModal').classList.remove('hidden');
         }
 
-        function onSortOrderChange() {
-            if (!globalGroups || globalGroups.length === 0) return;
-            const sortOrder = document.getElementById('sortOrder').value;
-            const rolesList = document.getElementById('groupRoles').value.split(',').map(r => r.trim()).filter(r => r !== '');
-            globalGroups.forEach(group => {
-                if (sortOrder === 'number') {
-                    group.students.sort((a, b) => a.number - b.number);
-                } else if (sortOrder === 'role') {
-                    group.students.sort((a, b) => {
-                        let idxA = rolesList.indexOf(a.role);
-                        let idxB = rolesList.indexOf(b.role);
-                        if (idxA === -1) idxA = 999;
-                        if (idxB === -1) idxB = 999;
-                        if (idxA !== idxB) return idxA - idxB;
-                        return a.number - b.number;
-                    });
-                } else {
-                    group.students = shuffleArray(group.students);
-                }
-            });
-            renderGroups(globalGroups, globalClassName);
-        }
-
-        async function generateGroups() {
-            const selectedClass = document.getElementById('classSelect').value;
-            if (!selectedClass || !allClassesData[selectedClass]) {
-                showNotice("먼저 명렬표를 업로드하거나 [🧪 샘플 데이터로 체험] 버튼을 눌러주세요.");
-                return;
-            }
-
-            const currentStudentsData = allClassesData[selectedClass];
-            const numGroups = parseInt(document.getElementById('numGroups').value, 10);
-            const sortOrder = document.getElementById('sortOrder').value;
-            const minPerGroup = parseInt(document.getElementById('minPerGroup').value, 10);
-            const maxPerGroup = parseInt(document.getElementById('maxPerGroup').value, 10);
-            const maxMale = parseInt(document.getElementById('maxMale').value, 10);
-            const maxFemale = parseInt(document.getElementById('maxFemale').value, 10);
-            
-            const totalStudents = currentStudentsData.length;
-            const baseCapacity = Math.floor(totalStudents / numGroups);
-            const remainder = totalStudents % numGroups;
-            let capacities = Array(numGroups).fill(baseCapacity);
-            for (let i = 0; i < remainder; i++) capacities[i]++;
-
-            if (capacities.some(c => c > maxPerGroup) || capacities.some(c => c < minPerGroup)) {
-                const proceed = await showConfirm(
-                    `현재 학급 인원(${totalStudents}명)을 ${numGroups}모둠으로 나누면 한 모둠당 ${Math.min(...capacities)}~${Math.max(...capacities)}명이 되어 설정하신 최소(${minPerGroup}명)~최대(${maxPerGroup}명) 범위를 벗어납니다.\n\n계속 진행하시겠습니까?`,
-                    "인원 범위 확인"
-                );
-                if (!proceed) return;
-            }
-
-            // MBTI 옵션 연산
-            const mbtiMode = document.getElementById('mbtiBalance').value;
-            let mbtiLimits = {};
-            if (mbtiMode !== 'none') {
-                const char1 = mbtiMode[0];
-                const char2 = mbtiMode[1];
-                let count1 = 0, count2 = 0;
-                currentStudentsData.forEach(s => {
-                    if (s.mbti && s.mbti.includes(char1)) count1++;
-                    if (s.mbti && s.mbti.includes(char2)) count2++;
-                });
-                mbtiLimits[char1] = Math.ceil(count1 / numGroups);
-                mbtiLimits[char2] = Math.ceil(count2 / numGroups);
-            }
-
-            // 성적 동적 단계(A, B, C, D, E...) 분배 연산 구축
-            const hasScoreDiv = document.getElementById('scoreOptionsDiv') && !document.getElementById('scoreOptionsDiv').classList.contains('hidden');
-            const scoreMode = hasScoreDiv ? document.getElementById('scoreBalance').value : 'none';
-            const tierCount = getTierCount();
-            const tierLabels = getTierLabels(tierCount);
-            const tierMap = getClassTiers(selectedClass, tierCount);
-            
-            let scoreLimits = {};
-            tierLabels.forEach(l => { scoreLimits[l] = 0; });
-
-            if (scoreMode !== 'none') {
-                let counts = {};
-                tierLabels.forEach(l => { counts[l] = 0; });
-                currentStudentsData.forEach(s => {
-                    let t = tierMap[s.number];
-                    if (counts[t] !== undefined) counts[t]++;
-                });
-                tierLabels.forEach(l => {
-                    scoreLimits[l] = Math.max(1, Math.ceil(counts[l] / numGroups));
-                });
-            }
-
-            const avoidanceRules = parseConstraints(document.getElementById('constraints').value);
-            const inclusionBundles = parseInclusions(document.getElementById('inclusions').value);
-            const rolesList = document.getElementById('groupRoles').value.split(',').map(r => r.trim()).filter(r => r !== '');
-
-            let studentPool = [];
-            let usedStudentNumbers = new Set();
-            for (let bundleNumArray of inclusionBundles) {
-                let bundleStudents = currentStudentsData.filter(s => bundleNumArray.includes(s.number));
-                if (bundleStudents.length > 0) {
-                    studentPool.push(bundleStudents);
-                    bundleStudents.forEach(s => usedStudentNumbers.add(s.number));
-                }
-            }
-            currentStudentsData.forEach(s => {
-                if (!usedStudentNumbers.has(s.number)) studentPool.push([s]);
-            });
-
-            // 묶음 배치 가능 여부 사전 검증
-            const maxCapacityAllowed = Math.max(...capacities);
-            for (let bundle of studentPool) {
-                if (bundle.length > maxCapacityAllowed) {
-                    showNotice(`[조건 충돌] 함께 묶은 학생 수(${bundle.length}명)가 한 조의 최대 정원(${maxCapacityAllowed}명)을 초과합니다.`, "조건 충돌 안내");
-                    return;
-                }
-                let bMales = bundle.filter(s => s.gender.includes('남')).length;
-                let bFemales = bundle.filter(s => s.gender.includes('여')).length;
-                
-                if (bMales > maxMale) {
-                    showNotice(`[조건 충돌] 짝꿍으로 묶은 학생 중 남학생이 ${bMales}명 있습니다.\n\n👉 해결방법: 좌측 설정에서 '남학생 최대 인원'을 ${bMales}명 이상으로 늘려주세요.`, "성별 제한 충돌");
-                    return;
-                }
-                if (bFemales > maxFemale) {
-                    showNotice(`[조건 충돌] 짝꿍으로 묶은 학생 중 여학생이 ${bFemales}명 있습니다.\n\n👉 해결방법: 좌측 설정에서 '여학생 최대 인원'을 ${bFemales}명 이상으로 늘려주세요.`, "성별 제한 충돌");
-                    return;
-                }
-                if (mbtiMode !== 'none') {
-                    const char1 = mbtiMode[0];
-                    const char2 = mbtiMode[1];
-                    let count1 = bundle.filter(s => s.mbti && s.mbti.includes(char1)).length;
-                    let count2 = bundle.filter(s => s.mbti && s.mbti.includes(char2)).length;
-                    if (count1 > mbtiLimits[char1] || count2 > mbtiLimits[char2]) {
-                        showNotice(`[조건 충돌] 짝꿍으로 묶은 학생들의 MBTI 성향이 한쪽으로 편중되어 균등 분배 한계를 초과했습니다.`, "MBTI 제한 충돌");
-                        return;
-                    }
-                }
-                if (scoreMode !== 'none') {
-                    let sCounts = {};
-                    tierLabels.forEach(l => { sCounts[l] = 0; });
-                    bundle.forEach(s => {
-                        const t = tierMap[s.number];
-                        if (sCounts[t] !== undefined) sCounts[t]++;
-                    });
-                    for (let l of tierLabels) {
-                        if (sCounts[l] > scoreLimits[l]) {
-                            showNotice(`[조건 충돌] 짝꿍으로 묶은 학생들 중에 성적 '${l}' 수준 학생이 ${sCounts[l]}명 포함되어 모둠당 허용치(${scoreLimits[l]}명)를 초과했습니다.\n\n👉 해결방법: 필수 짝꿍 조건을 조정하거나 성적 균등 분배 옵션을 잠시 꺼주세요.`, "성적 분배 충돌");
-                            return;
-                        }
-                    }
-                }
-            }
-
-            let bestResult = null;
-            const MAX_ATTEMPTS = 2400;
-
-            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-                const relaxScoreLimit = (attempt >= 1800) ? 1 : 0;
-
-                let groups = Array(numGroups).fill(null).map((_, idx) => {
-                    let initScoreCounts = {};
-                    tierLabels.forEach(l => { initScoreCounts[l] = 0; });
-                    return {
-                        id: idx + 1,
-                        capacity: capacities[idx],
-                        students: [],
-                        males: 0,
-                        females: 0,
-                        mbtiCounts: { E:0, I:0, S:0, N:0, T:0, F:0, J:0, P:0 },
-                        scoreCounts: initScoreCounts
-                    };
-                });
-
-                let shuffledPool = shuffleArray(studentPool);
-                shuffledPool.sort((a, b) => {
-                    if (b.length !== a.length) return b.length - a.length;
-                    if (scoreMode !== 'none') {
-                        const tA = tierLabels.indexOf(tierMap[a[0].number]);
-                        const tB = tierLabels.indexOf(tierMap[b[0].number]);
-                        return tA - tB;
-                    }
-                    return 0;
-                });
-                
-                let success = true;
-
-                for (let studentSet of shuffledPool) {
-                    let setSize = studentSet.length;
-                    let setMales = studentSet.filter(s => s.gender.includes('남')).length;
-                    let setFemales = studentSet.filter(s => s.gender.includes('여')).length;
-
-                    let setMbtiCount = { E:0, I:0, S:0, N:0, T:0, F:0, J:0, P:0 };
-                    let setScoreCount = {};
-                    tierLabels.forEach(l => { setScoreCount[l] = 0; });
-
-                    studentSet.forEach(s => {
-                        if (s.mbti) {
-                            for (let char of s.mbti) {
-                                if (setMbtiCount[char] !== undefined) setMbtiCount[char]++;
-                            }
-                        }
-                        const t = tierMap[s.number];
-                        if (setScoreCount[t] !== undefined) setScoreCount[t]++;
-                    });
-
-                    let validGroups = groups.filter(g => {
-                        if (g.students.length + setSize > g.capacity) return false;
-                        if (g.males + setMales > maxMale) return false;
-                        if (g.females + setFemales > maxFemale) return false;
-                        
-                        if (mbtiMode !== 'none') {
-                            const char1 = mbtiMode[0];
-                            const char2 = mbtiMode[1];
-                            if ((g.mbtiCounts[char1] + setMbtiCount[char1]) > mbtiLimits[char1]) return false;
-                            if ((g.mbtiCounts[char2] + setMbtiCount[char2]) > mbtiLimits[char2]) return false;
-                        }
-
-                        if (scoreMode !== 'none') {
-                            for (let l of tierLabels) {
-                                if (setScoreCount[l] > 0 && (g.scoreCounts[l] + setScoreCount[l]) > (scoreLimits[l] + relaxScoreLimit)) {
-                                    return false;
-                                }
-                            }
-                        }
-
-                        for (let newStudent of studentSet) {
-                            for (let existingStudent of g.students) {
-                                for (let rule of avoidanceRules) {
-                                    if (rule[0] === newStudent.number && rule[1] === existingStudent.number) return false;
-                                }
-                            }
-                        }
-                        return true;
-                    });
-
-                    if (validGroups.length === 0) {
-                        success = false;
-                        break;
-                    }
-
-                    if (scoreMode !== 'none') {
-                        const mainTier = tierMap[studentSet[0].number];
-                        const minTierInValid = Math.min(...validGroups.map(g => g.scoreCounts[mainTier] || 0));
-                        validGroups = validGroups.filter(g => (g.scoreCounts[mainTier] || 0) === minTierInValid);
-                    }
-
-                    let targetGroup = validGroups[Math.floor(Math.random() * validGroups.length)];
-                    studentSet.forEach(s => {
-                        targetGroup.students.push({ ...s, role: '' });
-                        if (s.gender.includes('남')) targetGroup.males++;
-                        if (s.gender.includes('여')) targetGroup.females++;
-                        if (s.mbti) {
-                            for (let char of s.mbti) {
-                                if (targetGroup.mbtiCounts[char] !== undefined) targetGroup.mbtiCounts[char]++;
-                            }
-                        }
-                        const t = tierMap[s.number];
-                        if (targetGroup.scoreCounts[t] !== undefined) targetGroup.scoreCounts[t]++;
-                    });
-                }
-
-                if (success) {
-                    bestResult = groups;
-                    break;
-                }
-            }
-
-            if (bestResult) {
-                bestResult.forEach(group => {
-                    if (rolesList.length > 0) {
-                        let shuffledRoles = shuffleArray(rolesList);
-                        group.students.forEach((student, idx) => { student.role = shuffledRoles[idx] || ''; });
-                    }
-                    if (sortOrder === 'number') {
-                        group.students.sort((a, b) => a.number - b.number);
-                    } else if (sortOrder === 'role') {
-                        group.students.sort((a, b) => {
-                            let idxA = rolesList.indexOf(a.role);
-                            let idxB = rolesList.indexOf(b.role);
-                            if (idxA === -1) idxA = 999;
-                            if (idxB === -1) idxB = 999;
-                            if (idxA !== idxB) return idxA - idxB;
-                            return a.number - b.number;
-                        });
-                    } else {
-                        group.students = shuffleArray(group.students);
-                    }
-                });
-
-                selectedForSwap = null;
-                renderGroups(bestResult, selectedClass);
-                showToast("🎉 최적의 모둠 구성이 완료되었습니다! 학생 카드를 드래그해 미세 조정할 수 있습니다.");
-                
-                setTimeout(() => {
-                    const resultSection = document.getElementById('resultSection');
-                    if (resultSection) resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
-
+        function onExportSettingsToggleChange() {
+            const includeSettings = document.getElementById('exportIncludeSettings').checked;
+            const sensitiveInput = document.getElementById('exportIncludeSensitive');
+            const sensitiveLabel = document.getElementById('exportSensitiveLabel');
+            if (!includeSettings) {
+                sensitiveInput.checked = false;
+                sensitiveInput.disabled = true;
+                sensitiveLabel.classList.add('opacity-50', 'pointer-events-none');
             } else {
-                showNotice("조건이 너무 복잡하여 모둠을 구성할 수 없습니다.\n\n👉 해결방법: 남/여 최대 인원을 1명 늘리거나, 짝꿍/기피 조건 또는 성적/MBTI 균등 분배 옵션을 완화해 주세요.", "모둠 구성 실패");
+                sensitiveInput.disabled = false;
+                sensitiveLabel.classList.remove('opacity-50', 'pointer-events-none');
             }
         }
 
-        function getDisplayClassName(className) {
-            return (className === '전체반' || className.endsWith('반')) ? className : `${className}반`;
+        function confirmExportToExcel() {
+            closeModal('exportOptionsModal');
+            const includeSettings = document.getElementById('exportIncludeSettings').checked;
+            const includeSensitive = includeSettings && document.getElementById('exportIncludeSensitive').checked;
+            exportToExcel(includeSettings, includeSensitive);
         }
 
-        function getTierBadgeStyle(tier) {
-            const styles = {
-                'A': 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                'B': 'bg-teal-100 text-teal-800 border-teal-300',
-                'C': 'bg-sky-100 text-sky-800 border-sky-300',
-                'D': 'bg-indigo-100 text-indigo-800 border-indigo-300',
-                'E': 'bg-amber-100 text-amber-800 border-amber-300',
-                'F': 'bg-orange-100 text-orange-800 border-orange-300'
-            };
-            return styles[tier] || 'bg-gray-100 text-gray-800 border-gray-300';
-        }
-
-        function recalculateGroupCounts() {
-            if (!globalGroups) return;
-            globalGroups.forEach(g => {
-                g.males = g.students.filter(s => s.gender.includes('남')).length;
-                g.females = g.students.filter(s => s.gender.includes('여')).length;
-            });
-        }
-
-        function checkGroupAvoidanceConflicts(group) {
-            const avoidanceRules = parseConstraints(document.getElementById('constraints').value);
-            const conflicts = [];
-            for (let i = 0; i < group.students.length; i++) {
-                for (let j = i + 1; j < group.students.length; j++) {
-                    const s1 = group.students[i];
-                    const s2 = group.students[j];
-                    const isConflict = avoidanceRules.some(r => r[0] === s1.number && r[1] === s2.number);
-                    if (isConflict) {
-                        conflicts.push(`${s1.number}번(${s1.name}) ↔ ${s2.number}번(${s2.name})`);
-                    }
-                }
-            }
-            return conflicts;
-        }
-
-        function renderGroups(groups, className) {
-            globalGroups = groups;
-            globalClassName = className;
-            recalculateGroupCounts();
-
-            const container = document.getElementById('resultsGrid');
-            const summary = document.getElementById('summaryText');
-            const titleClassInfo = document.getElementById('currentClassName');
-            const actionButtons = document.getElementById('resultActionButtons');
-            const dragGuideBanner = document.getElementById('dragGuideBanner');
-            const selectedIndicator = document.getElementById('selectedStudentIndicator');
-            
-            const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
-            const tierCount = getTierCount();
-            const tiers = getClassTiers(className, tierCount);
-
-            container.innerHTML = ''; 
-            const displayClassName = getDisplayClassName(className);
-            titleClassInfo.innerText = `[${displayClassName === '전체반' ? '전체' : displayClassName}]`;
-            titleClassInfo.classList.remove('hidden');
-            
-            summary.innerHTML = `<span class="text-indigo-600 font-bold">완료!</span> 총 ${groups.length}모둠`;
-            summary.classList.remove('hidden');
-            actionButtons.classList.remove('hidden');
-            dragGuideBanner.classList.remove('hidden');
-
-            if (selectedForSwap) {
-                const selStudent = globalGroups[selectedForSwap.groupIdx]?.students[selectedForSwap.studentIdx];
-                if (selStudent) {
-                    selectedIndicator.innerText = `선택됨: ${selStudent.number}번 ${selStudent.name} (교환할 학생 또는 이동할 모둠 제목 클릭)`;
-                    selectedIndicator.classList.remove('hidden');
-                } else {
-                    selectedIndicator.classList.add('hidden');
-                }
-            } else {
-                selectedIndicator.classList.add('hidden');
-            }
-
-            groups.forEach((group, gIdx) => {
-                const conflicts = checkGroupAvoidanceConflicts(group);
-                const conflictBanner = conflicts.length > 0
-                    ? `<div class="bg-rose-50 border-b border-rose-200 px-3 py-1.5 text-[11px] text-rose-700 font-bold flex items-center gap-1">
-                         <span>⚠️ 기피 조건 주의: ${conflicts.join(', ')}</span>
-                       </div>`
-                    : '';
-
-                let html = `
-                    <div class="group-card bg-white border rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 fade-in flex flex-col h-full"
-                         data-group-idx="${gIdx}"
-                         ondragover="handleGroupDragOver(event, ${gIdx})"
-                         ondragleave="handleGroupDragLeave(event, ${gIdx})"
-                         ondrop="handleGroupDrop(event, ${gIdx})">
-                        <div class="bg-gradient-to-r from-indigo-50 to-white border-b p-3.5 flex justify-between items-center cursor-pointer select-none"
-                             title="클릭하거나 학생을 이곳으로 드래그하면 이 모둠으로 이동합니다"
-                             onclick="handleGroupHeaderClick(${gIdx})">
-                            <h3 class="font-extrabold text-indigo-900 text-base sm:text-lg flex items-center gap-1.5">
-                                <span class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">${group.id}</span>
-                                모둠
-                                <span class="text-xs font-normal text-gray-400 ml-1">(${group.students.length}명)</span>
-                            </h3>
-                            <div class="text-[10px] sm:text-xs font-bold bg-white px-2.5 py-1 rounded-full border shadow-sm text-gray-600">
-                                <span class="text-blue-600">남 ${group.males}</span> <span class="text-gray-300 mx-0.5">|</span> 
-                                <span class="text-red-500">여 ${group.females}</span>
-                            </div>
-                        </div>
-                        ${conflictBanner}
-                        <ul class="p-3 space-y-2.5 flex-grow bg-gray-50/30 min-h-[120px]">
-                `;
-
-                group.students.forEach((student, sIdx) => {
-                    const isMale = student.gender.includes('남');
-                    const isSelected = selectedForSwap && selectedForSwap.groupIdx === gIdx && selectedForSwap.studentIdx === sIdx;
-                    const selectedClassStr = isSelected ? 'selected-for-swap' : '';
-
-                    const genderBadge = isMale 
-                        ? `<span class="bg-blue-100/70 text-blue-700 text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded ml-2 whitespace-nowrap font-bold border border-blue-200 shadow-sm shrink-0">남</span>`
-                        : `<span class="bg-red-100/70 text-red-600 text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded ml-2 whitespace-nowrap font-bold border border-red-200 shadow-sm shrink-0">여</span>`;
-                        
-                    const roleBadge = student.role 
-                        ? `<span class="bg-amber-100 text-amber-800 text-[10px] sm:text-xs px-2 py-0.5 rounded-md ml-1.5 font-bold whitespace-nowrap shadow-sm border border-amber-200 shrink-0">#${student.role}</span>` : '';
-                        
-                    const mbtiBadge = (showMbti && student.mbti)
-                        ? `<span class="bg-purple-100 text-purple-800 text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded font-extrabold shadow-sm border border-purple-200 shrink-0 mr-1 text-center w-9 inline-block">${student.mbti}</span>` : '';
-
-                    let scoreBadge = '';
-                    if (showScore && !isNaN(student.score)) {
-                        let t = tiers[student.number] || 'C';
-                        let badgeStyle = getTierBadgeStyle(t);
-                        scoreBadge = `<span class="${badgeStyle} text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded font-extrabold shadow-sm border shrink-0 mr-1.5 text-center inline-block" title="성적 수준: ${t}단계 (${student.score}점)">${t}:${student.score}</span>`;
-                    }
-
-                    html += `
-                        <li class="student-card ${selectedClassStr} flex justify-between items-center bg-white p-2.5 rounded-xl border border-gray-200 text-sm shadow-sm cursor-grab active:cursor-grabbing"
-                            draggable="true"
-                            data-group-idx="${gIdx}"
-                            data-student-idx="${sIdx}"
-                            title="드래그하여 다른 학생과 맞교환하거나 다른 모둠으로 이동"
-                            ondragstart="handleStudentDragStart(event, ${gIdx}, ${sIdx})"
-                            ondragover="handleStudentDragOver(event)"
-                            ondragleave="handleStudentDragLeave(event)"
-                            ondrop="handleStudentDrop(event, ${gIdx}, ${sIdx})"
-                            ondragend="handleStudentDragEnd(event)"
-                            onclick="handleStudentClick(event, ${gIdx}, ${sIdx})">
-                            <div class="flex items-center overflow-hidden w-full">
-                                <span class="text-gray-300 hover:text-indigo-500 mr-1.5 text-xs select-none" title="드래그 핸들">⠿</span>
-                                <span class="text-gray-400 w-6 inline-block text-right mr-1.5 font-mono text-xs shrink-0">${student.number}.</span>
-                                ${mbtiBadge}
-                                ${scoreBadge}
-                                <span class="font-bold text-gray-800 truncate mr-1">${student.name}</span>
-                                ${roleBadge}
-                            </div>
-                            ${genderBadge}
-                        </li>
-                    `;
-                });
-                html += `</ul></div>`;
-                container.insertAdjacentHTML('beforeend', html);
-            });
-        }
-
-        function handleStudentDragStart(event, groupIdx, studentIdx) {
-            draggedItem = { groupIdx, studentIdx };
-            selectedForSwap = null;
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', JSON.stringify(draggedItem));
-            setTimeout(() => {
-                if (event.target && event.target.classList) {
-                    event.target.classList.add('dragging');
-                }
-            }, 0);
-        }
-
-        function handleStudentDragOver(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            event.dataTransfer.dropEffect = 'move';
-            const li = event.currentTarget;
-            if (li && !li.classList.contains('dragging')) {
-                li.classList.add('drag-over-student');
-            }
-        }
-
-        function handleStudentDragLeave(event) {
-            const li = event.currentTarget;
-            if (li) {
-                li.classList.remove('drag-over-student');
-            }
-        }
-
-        function handleStudentDrop(event, targetGroupIdx, targetStudentIdx) {
-            event.preventDefault();
-            event.stopPropagation();
-            const li = event.currentTarget;
-            if (li) li.classList.remove('drag-over-student');
-
-            if (!draggedItem) return;
-            const { groupIdx: srcGroupIdx, studentIdx: srcStudentIdx } = draggedItem;
-            draggedItem = null;
-
-            if (srcGroupIdx === targetGroupIdx && srcStudentIdx === targetStudentIdx) return;
-            swapStudentsBetweenGroups(srcGroupIdx, srcStudentIdx, targetGroupIdx, targetStudentIdx);
-        }
-
-        function handleStudentDragEnd(event) {
-            draggedItem = null;
-            document.querySelectorAll('.student-card').forEach(el => {
-                el.classList.remove('dragging', 'drag-over-student');
-            });
-            document.querySelectorAll('.group-card').forEach(el => {
-                el.classList.remove('drag-over-group');
-            });
-        }
-
-        function handleGroupDragOver(event, groupIdx) {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
-            const card = event.currentTarget;
-            if (card && draggedItem && draggedItem.groupIdx !== groupIdx) {
-                card.classList.add('drag-over-group');
-            }
-        }
-
-        function handleGroupDragLeave(event, groupIdx) {
-            const card = event.currentTarget;
-            if (card && !card.contains(event.relatedTarget)) {
-                card.classList.remove('drag-over-group');
-            }
-        }
-
-        function handleGroupDrop(event, targetGroupIdx) {
-            event.preventDefault();
-            const card = event.currentTarget;
-            if (card) card.classList.remove('drag-over-group');
-
-            if (!draggedItem) return;
-            const { groupIdx: srcGroupIdx, studentIdx: srcStudentIdx } = draggedItem;
-            draggedItem = null;
-
-            if (srcGroupIdx === targetGroupIdx) return;
-            moveStudentToGroup(srcGroupIdx, srcStudentIdx, targetGroupIdx);
-        }
-
-        function handleStudentClick(event, groupIdx, studentIdx) {
-            event.stopPropagation();
-            if (!selectedForSwap) {
-                selectedForSwap = { groupIdx, studentIdx };
-                renderGroups(globalGroups, globalClassName);
-                return;
-            }
-            if (selectedForSwap.groupIdx === groupIdx && selectedForSwap.studentIdx === studentIdx) {
-                selectedForSwap = null;
-                renderGroups(globalGroups, globalClassName);
-                return;
-            }
-            const { groupIdx: srcGroupIdx, studentIdx: srcStudentIdx } = selectedForSwap;
-            selectedForSwap = null;
-            swapStudentsBetweenGroups(srcGroupIdx, srcStudentIdx, groupIdx, studentIdx);
-        }
-
-        function handleGroupHeaderClick(targetGroupIdx) {
-            if (!selectedForSwap) return;
-            const { groupIdx: srcGroupIdx, studentIdx: srcStudentIdx } = selectedForSwap;
-            selectedForSwap = null;
-            if (srcGroupIdx === targetGroupIdx) {
-                renderGroups(globalGroups, globalClassName);
-                return;
-            }
-            moveStudentToGroup(srcGroupIdx, srcStudentIdx, targetGroupIdx);
-        }
-
-        function swapStudentsBetweenGroups(srcGIdx, srcSIdx, tgtGIdx, tgtSIdx) {
-            const srcGroup = globalGroups[srcGIdx];
-            const tgtGroup = globalGroups[tgtGIdx];
-            if (!srcGroup || !tgtGroup) return;
-
-            const studentA = srcGroup.students[srcSIdx];
-            const studentB = tgtGroup.students[tgtSIdx];
-            if (!studentA || !studentB) return;
-
-            const roleA = studentA.role;
-            const roleB = studentB.role;
-
-            srcGroup.students[srcSIdx] = { ...studentB, role: roleA };
-            tgtGroup.students[tgtSIdx] = { ...studentA, role: roleB };
-
-            renderGroups(globalGroups, globalClassName);
-
-            const conflictsA = checkGroupAvoidanceConflicts(srcGroup);
-            const conflictsB = checkGroupAvoidanceConflicts(tgtGroup);
-            if (conflictsA.length > 0 || conflictsB.length > 0) {
-                showToast(`⚠️ 맞교환 완료 (${studentA.name} ↔ ${studentB.name}) · 기피 학생 조건이 겹치는지 확인해 주세요!`, 'amber');
-            } else {
-                showToast(`🔄 ${srcGroup.id}모둠 [${studentA.name}] 학생과 ${tgtGroup.id}모둠 [${studentB.name}] 학생이 맞교환되었습니다.`);
-            }
-        }
-
-        function moveStudentToGroup(srcGIdx, srcSIdx, tgtGIdx) {
-            const srcGroup = globalGroups[srcGIdx];
-            const tgtGroup = globalGroups[tgtGIdx];
-            if (!srcGroup || !tgtGroup) return;
-
-            if (srcGroup.students.length <= 1) {
-                showToast("⚠️ 모둠에 최소 1명의 학생은 남아있어야 합니다.", 'rose');
-                renderGroups(globalGroups, globalClassName);
-                return;
-            }
-
-            const [movedStudent] = srcGroup.students.splice(srcSIdx, 1);
-            tgtGroup.students.push(movedStudent);
-
-            renderGroups(globalGroups, globalClassName);
-
-            const conflicts = checkGroupAvoidanceConflicts(tgtGroup);
-            if (conflicts.length > 0) {
-                showToast(`⚠️ [${movedStudent.name}] 학생이 ${tgtGroup.id}모둠으로 이동되었습니다. (기피 학생 조건 주의!)`, 'amber');
-            } else {
-                showToast(`➡️ [${movedStudent.name}] 학생이 ${srcGroup.id}모둠에서 ${tgtGroup.id}모둠으로 이동되었습니다.`);
-            }
-        }
-
-        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-
-        function showStudentList() {
-            const selectedClass = document.getElementById('classSelect').value;
-            if (!selectedClass || !allClassesData[selectedClass]) return;
-            const students = [...allClassesData[selectedClass]].sort((a, b) => a.number - b.number);
-            const listContent = document.getElementById('studentListContent');
-            const displayClassName = getDisplayClassName(selectedClass);
-            
-            const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
-            const tierCount = getTierCount();
-            let tiers = getClassTiers(selectedClass, tierCount);
-
-            document.getElementById('studentListTitle').innerText = `${displayClassName === '전체반' ? '전체' : displayClassName} 명단 (총 ${students.length}명)`;
-            listContent.innerHTML = '';
-
-            students.forEach(student => {
-                const isMale = student.gender.includes('남');
-                const genderColor = isMale ? 'text-blue-700 bg-blue-50/50' : 'text-red-700 bg-red-50/50';
-                const genderText = isMale ? '남' : '여';
-                
-                const mbtiText = (showMbti && student.mbti) ? `<span class="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 rounded border border-purple-200">${student.mbti}</span>` : '';
-                
-                let scoreText = '';
-                if (showScore && !isNaN(student.score)) {
-                    let t = tiers[student.number] || 'C';
-                    let badgeStyle = getTierBadgeStyle(t);
-                    scoreText = `<span class="ml-2 px-1.5 py-0.5 text-[10px] font-bold rounded border ${badgeStyle}">${t}수준 : ${student.score}점</span>`;
-                }
-
-                const li = document.createElement('li');
-                li.className = `flex justify-between items-center p-3 rounded-xl border border-gray-100 bg-white shadow-sm mb-2`;
-                li.innerHTML = `
-                    <div class="font-bold text-gray-800 flex items-center flex-wrap">
-                        <span class="text-gray-400 font-mono text-xs w-7 inline-block mr-2">${student.number}.</span> 
-                        <span class="mr-1">${student.name}</span> ${mbtiText} ${scoreText}
-                    </div>
-                    <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-md ${genderColor} border border-opacity-50">${genderText}</span>
-                `;
-                listContent.appendChild(li);
-            });
-            document.getElementById('studentListModal').classList.remove('hidden');
-        }
-
-        function copyResults() {
-            if (!globalGroups || globalGroups.length === 0) return;
-            const displayClassName = getDisplayClassName(globalClassName);
-            const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
-            const tierCount = getTierCount();
-            let tiers = getClassTiers(globalClassName, tierCount);
-
-            let text = `[${displayClassName === '전체반' ? '전체' : displayClassName} 모둠 구성 결과]\n\n`;
-            
-            globalGroups.forEach(g => {
-                text += `${g.id}모둠 (남 ${g.males} / 여 ${g.females})\n`;
-                const studentStrs = g.students.map(s => {
-                    let sStr = `${s.number}번 ${s.name}(${s.gender.includes('남') ? '남' : '여'})`;
-                    if(showMbti && s.mbti) sStr += `[${s.mbti}]`;
-                    if(showScore && !isNaN(s.score)) {
-                        let t = tiers[s.number] || 'C';
-                        sStr += `[성적:${t}:${s.score}]`;
-                    }
-                    if(s.role) sStr += `<${s.role}>`;
-                    return sStr;
-                });
-                text += studentStrs.join(", ") + "\n\n";
-            });
-
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try { 
-                document.execCommand('copy'); 
-                showToast("📋 결과 텍스트가 클립보드에 복사되었습니다. (Ctrl+V로 붙여넣기 하세요)"); 
-            } catch (err) {
-                showNotice("브라우저 환경으로 인해 복사에 실패했습니다.");
-            }
-            document.body.removeChild(textArea);
-        }
-
-        function openPresentation() {
-            if (!globalGroups || globalGroups.length === 0) return;
-            const title = document.getElementById('presentationTitle');
-            const grid = document.getElementById('presentationGrid');
-            const displayClassName = getDisplayClassName(globalClassName);
-            
-            const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
-            const tierCount = getTierCount();
-            let tiers = getClassTiers(globalClassName, tierCount);
-
-            title.innerText = `🎉 ${displayClassName === '전체반' ? '전체' : displayClassName} 모둠 구성 결과`;
-            grid.innerHTML = '';
-
-            globalGroups.forEach(group => {
-                let html = `<div class="bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-700 fade-in h-full flex flex-col">
-                            <div class="bg-indigo-600 text-white p-4 text-center"><h3 class="font-extrabold text-xl sm:text-2xl">${group.id} 모둠</h3></div>
-                            <ul class="p-4 space-y-3 flex-grow">`;
-                group.students.forEach(student => {
-                    const mbtiHtml = (showMbti && student.mbti) ? `<span class="text-purple-300 text-xs sm:text-sm mr-2 font-bold bg-purple-900/50 px-2 py-0.5 rounded-md border border-purple-700/50 shrink-0">${student.mbti}</span>` : '';
-                    
-                    let scoreHtml = '';
-                    if (showScore && !isNaN(student.score)) {
-                        let t = tiers[student.number] || 'C';
-                        scoreHtml = `<span class="text-emerald-300 text-xs sm:text-sm mr-2 font-bold bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-700/50 shrink-0">${t}:${student.score}</span>`;
-                    }
-
-                    const roleHtml = student.role ? `<span class="text-amber-300 text-sm sm:text-base ml-auto font-bold whitespace-nowrap bg-amber-900/50 px-2.5 py-1 rounded-md border border-amber-700/50">#${student.role}</span>` : '';
-                    
-                    html += `<li class="flex items-center text-lg sm:text-xl font-medium p-3 bg-gray-750 rounded-xl border border-gray-600 text-gray-100 shadow-sm">
-                                <span class="text-gray-400 w-8 text-right mr-3 text-base font-mono">${student.number}.</span>
-                                <div class="flex items-center flex-wrap gap-1">
-                                    ${mbtiHtml}
-                                    ${scoreHtml}
-                                    <span class="font-bold">${student.name}</span>
-                                </div>
-                                ${roleHtml}
-                            </li>`;
-                });
-                html += `</ul></div>`;
-                grid.insertAdjacentHTML('beforeend', html);
-            });
-            document.getElementById('presentationModal').classList.remove('hidden');
-        }
-
-        function openPresentationNewWindow() {
-            if (!globalGroups || globalGroups.length === 0) return;
-            const displayClassName = getDisplayClassName(globalClassName);
-            const titleText = `🎉 ${displayClassName === '전체반' ? '전체' : displayClassName} 모둠 구성 결과`;
-            
-            const showMbti = shouldDisplayMbti();
-            const showScore = shouldDisplayScore();
-            const tierCount = getTierCount();
-            let tiers = getClassTiers(globalClassName, tierCount);
-
-            let cardsMarkup = '';
-            globalGroups.forEach(group => {
-                let itemsMarkup = '';
-                group.students.forEach(student => {
-                    const mbtiHtml = (showMbti && student.mbti) ? `<span class="text-purple-300 text-sm mr-2 font-bold bg-purple-900/50 px-2 py-1 rounded-md border border-purple-700/50 shrink-0">${student.mbti}<\/span>` : '';
-                    let scoreHtml = '';
-                    if (showScore && !isNaN(student.score)) {
-                        let t = tiers[student.number] || 'C';
-                        scoreHtml = `<span class="text-emerald-300 text-sm mr-2 font-bold bg-emerald-900/50 px-2 py-1 rounded-md border border-emerald-700/50 shrink-0">${t}:${student.score}<\/span>`;
-                    }
-                    const roleHtml = student.role ? `<span class="text-amber-300 text-base ml-auto font-bold whitespace-nowrap bg-amber-900/50 px-3 py-1 rounded-md border border-amber-700/50">#${student.role}<\/span>` : '';
-                    
-                    itemsMarkup += `<li class="flex items-center text-xl font-medium p-4 rounded-xl border border-gray-600 text-gray-100 shadow-sm" style="background-color: #374151;">
-                        <span class="text-gray-400 w-10 text-right mr-4 text-lg font-mono">${student.number}.<\/span>
-                        <div class="flex items-center flex-wrap gap-1">${mbtiHtml}${scoreHtml}<span class="font-bold">${student.name}<\/span><\/div>
-                        ${roleHtml}
-                    <\/li>`;
-                });
-
-                cardsMarkup += `<div class="bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-700 h-full flex flex-col">
-                    <div class="bg-indigo-600 text-white p-5 text-center"><h3 class="font-extrabold text-2xl">${group.id} 모둠<\/h3><\/div>
-                    <ul class="p-5 space-y-4 flex-grow">${itemsMarkup}<\/ul>
-                <\/div>`;
-            });
-
-            const htmlParts = [
-                '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                `<title>${titleText}<\/title>`,
-                '<script src="https://cdn.tailwindcss.com"><\/script>',
-                '<style>@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"); body { font-family: "Pretendard", sans-serif; background-color: #111827; color: white; margin: 0; padding: 2rem; min-height: 100vh; }<\/style>',
-                '<\/head><body><div class="max-w-[90rem] mx-auto">',
-                `<div class="flex justify-between items-center mb-8 border-b border-gray-700 pb-4"><h2 class="text-3xl sm:text-4xl font-extrabold text-indigo-400">${titleText}<\/h2><button onclick="window.close()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-sm sm:text-base font-bold transition-colors">창 닫기<\/button><\/div>`,
-                `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">${cardsMarkup}<\/div>`,
-                '<\/div><\/body><\/html>'
-            ];
-
-            try {
-                const blob = new Blob([htmlParts.join('')], { type: 'text/html;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                setTimeout(() => URL.revokeObjectURL(url), 5000);
-            } catch (e) {
-                showNotice("사용 중인 브라우저 환경에서 새 창 열기를 지원하지 않습니다. [팝업뷰]를 이용해 주세요.");
-            }
-        }
-
-        function exportToExcel() {
+        function exportToExcel(includeSettings = true, includeSensitive = false) {
             if (!globalGroups || globalGroups.length === 0) return;
             const displayClassName = getDisplayClassName(globalClassName);
             const showMbti = shouldDisplayMbti();
@@ -1723,13 +499,59 @@
                 cols.push({ wch: 10 });
                 cols.push({ wch: 10 });
             }
-            cols.push({ wch: 20 });
+            cols.push({ wch: 24 });
             worksheet['!cols'] = cols;
 
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "모둠구성결과");
-            XLSX.writeFile(workbook, `모둠구성_${displayClassName}_${dateString}.xlsx`);
-            showToast("💾 엑셀 파일 다운로드가 시작되었습니다.");
+
+            // 선택사항: 당시 설정 내용 및 복원용 데이터 시트 추가
+            if (includeSettings) {
+                const settingsPayload = {
+                    version: '1.04.00',
+                    savedAt: now.toISOString(),
+                    className: globalClassName,
+                    numGroups: parseInt(document.getElementById('numGroups').value, 10),
+                    sortOrder: document.getElementById('sortOrder').value,
+                    minPerGroup: parseInt(document.getElementById('minPerGroup').value, 10),
+                    maxPerGroup: parseInt(document.getElementById('maxPerGroup').value, 10),
+                    maxMale: parseInt(document.getElementById('maxMale').value, 10),
+                    maxFemale: parseInt(document.getElementById('maxFemale').value, 10),
+                    mbtiBalance: document.getElementById('mbtiBalance').value,
+                    mbtiDisplay: shouldDisplayMbti(),
+                    scoreBalance: document.getElementById('scoreBalance').value,
+                    scoreDisplay: shouldDisplayScore(),
+                    groupRoles: document.getElementById('groupRoles').value,
+                    includeSensitive: includeSensitive,
+                    constraints: includeSensitive ? document.getElementById('constraints').value : '',
+                    inclusions: includeSensitive ? document.getElementById('inclusions').value : '',
+                    classStudents: allClassesData[globalClassName] || []
+                };
+
+                const settingsSheetData = [
+                    { '항목': '저장 일시', '설정값': now.toLocaleString('ko-KR') },
+                    { '항목': '대상 학급', '설정값': displayClassName },
+                    { '항목': '총 모둠 수', '설정값': `${settingsPayload.numGroups}모둠` },
+                    { '항목': '모둠당 최소~최대 인원', '설정값': `${settingsPayload.minPerGroup}명 ~ ${settingsPayload.maxPerGroup}명` },
+                    { '항목': '남/여 최대 인원 제한', '설정값': `남 ${settingsPayload.maxMale}명 / 여 ${settingsPayload.maxFemale}명` },
+                    { '항목': 'MBTI 균등 분배', '설정값': settingsPayload.mbtiBalance },
+                    { '항목': '성적 균등 분배', '설정값': settingsPayload.scoreBalance },
+                    { '항목': '모둠 역할 목록', '설정값': settingsPayload.groupRoles || '(미지정)' },
+                    { '항목': '기피 학생 조건', '설정값': includeSensitive ? (settingsPayload.constraints || '(입력 없음)') : '🔒 보안을 위해 저장에서 제외됨' },
+                    { '항목': '필수 짝꿍 조건', '설정값': includeSensitive ? (settingsPayload.inclusions || '(입력 없음)') : '🔒 보안을 위해 저장에서 제외됨' },
+                    { '항목': '원본데이터_JSON', '설정값': JSON.stringify(settingsPayload) }
+                ];
+
+                const settingsWorksheet = XLSX.utils.json_to_sheet(settingsSheetData);
+                settingsWorksheet['!cols'] = [{ wch: 24 }, { wch: 65 }];
+                XLSX.utils.book_append_sheet(workbook, settingsWorksheet, "프로그램설정");
+            }
+
+            const suffixTag = includeSensitive ? '_교사보관용' : '';
+            XLSX.writeFile(workbook, `모둠구성_${displayClassName}_${dateString}${suffixTag}.xlsx`);
+            showToast(includeSensitive
+                ? "💾 민감 조건을 포함한 [교사 보관용] 엑셀 파일이 저장되었습니다."
+                : "💾 엑셀 파일 다운로드가 시작되었습니다. (민감 교우관계 조건 제외됨)");
         }
     </script>
 </body>
